@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../dados/modelos/registro_glicemico.dart';
 import '../../../dados/servicos/armazenamento_glicemia.dart';
 import 'pagina_edicao_glicemia.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 class PaginaGlicemia extends StatefulWidget {
   const PaginaGlicemia({super.key});
@@ -17,6 +18,218 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
   DateTime dataHoraSelecionada = DateTime.now();
   final List<RegistroGlicemico> registros = [];
   final armazenamento = ArmazenamentoGlicemia();
+
+  String filtroSelecionado = 'Todos';
+  String ordenacaoSelecionada = 'Mais recentes';
+
+  List<RegistroGlicemico> obterRegistrosFiltrados() {
+    final agora = DateTime.now();
+
+    if (filtroSelecionado == 'Todos') {
+      return registros;
+    }
+
+    if (filtroSelecionado == 'Hoje') {
+      return registros.where((registro) {
+        return registro.dataHora.year == agora.year &&
+            registro.dataHora.month == agora.month &&
+            registro.dataHora.day == agora.day;
+      }).toList();
+    }
+
+    if (filtroSelecionado == '7 dias') {
+      final dataLimite = agora.subtract(const Duration(days: 7));
+
+      return registros.where((registro) {
+        return !registro.dataHora.isBefore(dataLimite) &&
+            !registro.dataHora.isAfter(agora);
+      }).toList();
+    }
+
+    if (filtroSelecionado == '30 dias') {
+      final dataLimite = agora.subtract(const Duration(days: 30));
+
+      return registros.where((registro) {
+        return !registro.dataHora.isBefore(dataLimite) &&
+            !registro.dataHora.isAfter(agora);
+      }).toList();
+    }
+
+    return registros;
+  }
+
+  List<RegistroGlicemico> obterRegistrosFiltradosEOrdenados() {
+    final registrosFiltrados = obterRegistrosFiltrados();
+    final registrosOrdenados = [...registrosFiltrados];
+
+    if (ordenacaoSelecionada == 'Mais recentes') {
+      registrosOrdenados.sort((registro1, registro2) {
+        return registro2.dataHora.compareTo(registro1.dataHora);
+      });
+    } else if (ordenacaoSelecionada == 'Mais antigos') {
+      registrosOrdenados.sort((registro1, registro2) {
+        return registro1.dataHora.compareTo(registro2.dataHora);
+      });
+    } else if (ordenacaoSelecionada == 'Maior glicemia') {
+      registrosOrdenados.sort((registro1, registro2) {
+        return registro2.glicemia.compareTo(registro1.glicemia);
+      });
+    } else if (ordenacaoSelecionada == 'Menor glicemia') {
+      registrosOrdenados.sort((registro1, registro2) {
+        return registro1.glicemia.compareTo(registro2.glicemia);
+      });
+    }
+
+    return registrosOrdenados;
+  }
+
+  String obterClassificacaoRegistro(int valorGlicemia) {
+      if (valorGlicemia < 70) {
+        return 'Baixo';
+      } else if (valorGlicemia <= 140) {
+        return 'Normal';
+      } else if (valorGlicemia <= 180) {
+        return 'Atenção';
+      } else {
+        return 'Alto';
+      }
+  }
+
+  Color obterCorClassificacaoRegistro(String classificacao) {
+    switch (classificacao) {
+      case 'Baixo':
+        return Colors.blue;
+      case 'Normal':
+        return Colors.green;
+      case 'Atenção':
+        return Colors.orange;
+      case 'Alto':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Widget construirSeloClassificacao(String classificacao, Color cor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 5,
+      ),
+      decoration: BoxDecoration(
+        color: cor.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Text(
+        classificacao,
+        style: TextStyle(
+          color: cor,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+
+  Widget construirGraficoRegistros() {
+    final registrosFiltrados = obterRegistrosFiltrados();
+
+    if (registrosFiltrados.isEmpty || registrosFiltrados.length < 2) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 12),
+        child: Text(
+          'São necessários pelo menos 2 registros para exibir o gráfico.',
+        ),
+      );
+    }
+
+    final registrosOrdenados = [...registrosFiltrados];
+    registrosOrdenados.sort((registro1, registro2) {
+      return registro1.dataHora.compareTo(registro2.dataHora);
+    });
+
+    final pontos = <FlSpot>[];
+
+    for (int indice = 0; indice < registrosOrdenados.length; indice++) {
+      pontos.add(
+        FlSpot(
+          indice.toDouble(),
+          registrosOrdenados[indice].glicemia.toDouble(),
+        ),
+      );
+    }
+
+    double menorValor = registrosOrdenados.first.glicemia.toDouble();
+    double maiorValor = registrosOrdenados.first.glicemia.toDouble();
+
+    for (final registro in registrosOrdenados) {
+      final valor = registro.glicemia.toDouble();
+
+      if (valor < menorValor) {
+        menorValor = valor;
+      }
+
+      if (valor > maiorValor) {
+        maiorValor = valor;
+      }
+    }
+
+    return SizedBox(
+      height: 250,
+      child: LineChart(
+        LineChartData(
+          minY: menorValor - 10,
+          maxY: maiorValor + 10,
+          gridData: const FlGridData(show: true),
+          titlesData: FlTitlesData(
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 32,
+                getTitlesWidget: (value, meta) {
+                  final indice = value.toInt();
+
+                  if (indice < 0 || indice >= registrosOrdenados.length) {
+                    return const SizedBox.shrink();
+                  }
+
+                  final data = registrosOrdenados[indice].dataHora;
+                  final dia = data.day.toString().padLeft(2, '0');
+                  final mes = data.month.toString().padLeft(2, '0');
+
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text('$dia/$mes'),
+                  );
+                },
+              ),
+            ),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 42,
+              ),
+            ),
+          ),
+          borderData: FlBorderData(show: true),
+          lineBarsData: [
+            LineChartBarData(
+              spots: pontos,
+              isCurved: true,
+              dotData: const FlDotData(show: true),
+              belowBarData: BarAreaData(show: false),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -176,6 +389,38 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
     );
   }
 
+  Future<void> confirmarExclusaoRegistro(int indice) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Excluir registro'),
+          content: const Text(
+            'Tem certeza que deseja excluir este registro?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+              child: const Text('Excluir'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmar != true) return;
+
+    await excluirRegistro(indice);
+  }
+
   Future<void> editarRegistro(int indice) async {
     final registroAtual = registros[indice];
 
@@ -214,44 +459,72 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
   }
 
   Widget construirListaRegistros() {
-    if (registros.isEmpty) {
+    final registrosFiltrados = obterRegistrosFiltradosEOrdenados();
+
+    if (registrosFiltrados.isEmpty) {
       return const Padding(
         padding: EdgeInsets.only(top: 24),
-        child: Text('Nenhum registro salvo até o momento.'),
+        child: Text('Nenhum registro encontrado para o filtro selecionado.'),
       );
     }
 
     return ListView.builder(
-      itemCount: registros.length,
+      itemCount: registrosFiltrados.length,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemBuilder: (context, indice) {
-        final registro = registros[indice];
+        final registro = registrosFiltrados[indice];
+        final indiceOriginal = registros.indexOf(registro);
+
+        final classificacao = obterClassificacaoRegistro(registro.glicemia);
+        final corClassificacao = obterCorClassificacaoRegistro(classificacao);
 
         return Card(
           margin: const EdgeInsets.only(top: 12),
-          child: ListTile(
-            title: Text('${registro.glicemia} mg/dL'),
-            subtitle: Column(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(formatarDataHora(registro.dataHora)),
-                if (registro.observacao.isNotEmpty)
-                  Text('Observação: ${registro.observacao}'),
-              ],
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  onPressed: () => editarRegistro(indice),
-                  icon: const Icon(Icons.edit),
-                  tooltip: 'Editar',
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${registro.glicemia} mg/dL',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    construirSeloClassificacao(
+                      classificacao,
+                      corClassificacao,
+                    ),
+                  ],
                 ),
-                IconButton(
-                  onPressed: () => excluirRegistro(indice),
-                  icon: const Icon(Icons.delete),
-                  tooltip: 'Excluir',
+                const SizedBox(height: 8),
+                Text(formatarDataHora(registro.dataHora)),
+                if (registro.observacao.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text('Observação: ${registro.observacao}'),
+                ],
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      onPressed: () => editarRegistro(indiceOriginal),
+                      icon: const Icon(Icons.edit),
+                      tooltip: 'Editar',
+                    ),
+                    IconButton(
+                      onPressed: () => confirmarExclusaoRegistro(indiceOriginal),
+                      icon: const Icon(Icons.delete),
+                      tooltip: 'Excluir',
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -359,6 +632,92 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
                       style: tema.textTheme.bodyMedium,
                     ),
                     const SizedBox(height: 20),
+                    DropdownButtonFormField<String>(
+                      value: filtroSelecionado,
+                      decoration: InputDecoration(
+                        labelText: 'Filtrar por período',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'Hoje',
+                          child: Text('Hoje'),
+                        ),
+                        DropdownMenuItem(
+                          value: '7 dias',
+                          child: Text('Últimos 7 dias'),
+                        ),
+                        DropdownMenuItem(
+                          value: '30 dias',
+                          child: Text('Últimos 30 dias'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Todos',
+                          child: Text('Todos'),
+                        ),
+                      ],
+                      onChanged: (valor) {
+                        if (valor == null) return;
+
+                        setState(() {
+                          filtroSelecionado = valor;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      value: ordenacaoSelecionada,
+                      decoration: InputDecoration(
+                        labelText: 'Ordenar por',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'Mais recentes',
+                          child: Text('Mais recentes'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Mais antigos',
+                          child: Text('Mais antigos'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Maior glicemia',
+                          child: Text('Maior glicemia'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Menor glicemia',
+                          child: Text('Menor glicemia'),
+                        ),
+                      ],
+                      onChanged: (valor) {
+                        if (valor == null) return;
+
+                        setState(() {
+                          ordenacaoSelecionada = valor;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Evolução glicêmica',
+                      style: tema.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    construirGraficoRegistros(),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Lista de registros',
+                      style: tema.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     construirListaRegistros(),
                   ],
                 ),
