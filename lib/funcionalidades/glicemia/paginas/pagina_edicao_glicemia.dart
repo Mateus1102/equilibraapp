@@ -38,32 +38,63 @@ class _PaginaEdicaoGlicemiaState extends State<PaginaEdicaoGlicemia> {
   }
 
   Future<void> selecionarDataHora() async {
+    final agora = DateTime.now();
+
     final dataSelecionada = await showDatePicker(
       context: context,
-      initialDate: dataHoraSelecionada,
+      initialDate: dataHoraSelecionada.isAfter(agora) ? agora : dataHoraSelecionada,
       firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
+      lastDate: agora,
     );
 
     if (dataSelecionada == null) return;
-
     if (!mounted) return;
 
     final horaSelecionada = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(dataHoraSelecionada),
+      initialTime: TimeOfDay.fromDateTime(
+        dataSelecionada.year == agora.year &&
+                dataSelecionada.month == agora.month &&
+                dataSelecionada.day == agora.day
+            ? DateTime(
+                agora.year,
+                agora.month,
+                agora.day,
+                dataHoraSelecionada.hour > agora.hour
+                    ? agora.hour
+                    : dataHoraSelecionada.hour,
+                dataHoraSelecionada.hour == agora.hour &&
+                        dataHoraSelecionada.minute > agora.minute
+                    ? agora.minute
+                    : dataHoraSelecionada.minute,
+              )
+            : dataHoraSelecionada,
+      ),
     );
 
     if (horaSelecionada == null) return;
 
-    setState(() {
-      dataHoraSelecionada = DateTime(
-        dataSelecionada.year,
-        dataSelecionada.month,
-        dataSelecionada.day,
-        horaSelecionada.hour,
-        horaSelecionada.minute,
+    final novaDataHora = DateTime(
+      dataSelecionada.year,
+      dataSelecionada.month,
+      dataSelecionada.day,
+      horaSelecionada.hour,
+      horaSelecionada.minute,
+    );
+
+    if (novaDataHora.isAfter(agora)) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não é permitido informar uma data e hora futura.'),
+        ),
       );
+      return;
+    }
+
+    setState(() {
+      dataHoraSelecionada = novaDataHora;
     });
   }
 
@@ -101,6 +132,15 @@ class _PaginaEdicaoGlicemiaState extends State<PaginaEdicaoGlicemia> {
       return;
     }
 
+    if (dataHoraSelecionada.isAfter(DateTime.now())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('A data e hora não podem estar em datas futuras.'),
+        ),
+      );
+      return;
+    }
+    
     final registroAtualizado = widget.registro.copiarCom(
       glicemia: glicemia,
       dataHora: dataHoraSelecionada,

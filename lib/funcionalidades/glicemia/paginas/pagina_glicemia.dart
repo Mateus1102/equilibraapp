@@ -43,11 +43,13 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
   }
 
   Future<void> selecionarDataHora() async {
+    final agora = DateTime.now();
+
     final dataSelecionada = await showDatePicker(
       context: context,
-      initialDate: dataHoraSelecionada,
+      initialDate: dataHoraSelecionada.isAfter(agora) ? agora : dataHoraSelecionada,
       firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
+      lastDate: agora,
     );
 
     if (dataSelecionada == null) return;
@@ -55,19 +57,49 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
 
     final horaSelecionada = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(dataHoraSelecionada),
+      initialTime: TimeOfDay.fromDateTime(
+        dataSelecionada.year == agora.year &&
+                dataSelecionada.month == agora.month &&
+                dataSelecionada.day == agora.day
+            ? DateTime(
+                agora.year,
+                agora.month,
+                agora.day,
+                dataHoraSelecionada.hour > agora.hour
+                    ? agora.hour
+                    : dataHoraSelecionada.hour,
+                dataHoraSelecionada.hour == agora.hour &&
+                        dataHoraSelecionada.minute > agora.minute
+                    ? agora.minute
+                    : dataHoraSelecionada.minute,
+              )
+            : dataHoraSelecionada,
+      ),
     );
 
     if (horaSelecionada == null) return;
 
-    setState(() {
-      dataHoraSelecionada = DateTime(
-        dataSelecionada.year,
-        dataSelecionada.month,
-        dataSelecionada.day,
-        horaSelecionada.hour,
-        horaSelecionada.minute,
+    final novaDataHora = DateTime(
+      dataSelecionada.year,
+      dataSelecionada.month,
+      dataSelecionada.day,
+      horaSelecionada.hour,
+      horaSelecionada.minute,
+    );
+
+    if (novaDataHora.isAfter(agora)) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não é permitido informar uma data e hora futura.'),
+        ),
       );
+      return;
+    }
+
+    setState(() {
+      dataHoraSelecionada = novaDataHora;
     });
   }
 
@@ -90,6 +122,15 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Digite um valor numérico válido.'),
+        ),
+      );
+      return;
+    }
+
+    if (dataHoraSelecionada.isAfter(DateTime.now())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('A data e hora não podem estar em datas futuras.'),
         ),
       );
       return;
@@ -224,78 +265,104 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
   Widget build(BuildContext context) {
     final tema = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Registro de Glicemia'),
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Glicemia'),
+          centerTitle: true,
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Registrar'),
+              Tab(text: 'Histórico'),
+            ],
+          ),
+        ),
+        body: SafeArea(
+          child: TabBarView(
             children: [
-              Text(
-                'Informe seu índice glicêmico',
-                style: tema.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Registre sua glicemia e acompanhe seu histórico.',
-                style: tema.textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 24),
-              TextField(
-                controller: controladorGlicemia,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Glicemia (mg/dL)',
-                  hintText: 'Ex.: 110',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              InkWell(
-                onTap: selecionarDataHora,
-                child: InputDecorator(
-                  decoration: InputDecoration(
-                    labelText: 'Data e hora',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+              SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Informe seu índice glicêmico',
+                      style: tema.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  child: Text(formatarDataHora(dataHoraSelecionada)),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Registre sua glicemia para manter seu acompanhamento em dia.',
+                      style: tema.textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 24),
+                    TextField(
+                      controller: controladorGlicemia,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Glicemia (mg/dL)',
+                        hintText: 'Ex.: 110',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    InkWell(
+                      onTap: selecionarDataHora,
+                      child: InputDecorator(
+                        decoration: InputDecoration(
+                          labelText: 'Data e hora',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(formatarDataHora(dataHoraSelecionada)),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: controladorObservacao,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        labelText: 'Observação',
+                        hintText: 'Ex.: medição após café da manhã',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: salvarRegistro,
+                      child: const Text('Salvar registro'),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: controladorObservacao,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: 'Observação',
-                  hintText: 'Ex.: medição após café da manhã',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+              SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Histórico de registros',
+                      style: tema.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Consulte, edite ou exclua medições já registradas.',
+                      style: tema.textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 20),
+                    construirListaRegistros(),
+                  ],
                 ),
               ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: salvarRegistro,
-                child: const Text('Salvar registro'),
-              ),
-              const SizedBox(height: 28),
-              Text(
-                'Histórico',
-                style: tema.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              construirListaRegistros(),
             ],
           ),
         ),

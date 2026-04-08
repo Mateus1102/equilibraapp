@@ -22,9 +22,13 @@ class _PaginaInicialState extends State<PaginaInicial> {
   ];
 
   void alterarPagina(int novoIndice) {
-    setState(() {
-      indiceAtual = novoIndice;
-    });
+  setState(() {
+    indiceAtual = novoIndice;
+  });
+
+  if (novoIndice == 0) {
+    PaginaResumoStateContainer.recarregar?.call();
+    }
   }
 
   @override
@@ -56,6 +60,66 @@ class _PaginaInicialState extends State<PaginaInicial> {
   }
 }
 
+class PaginaResumoStateContainer {
+  static VoidCallback? recarregar;
+}
+
+Widget construirCardIndicador({
+  required String titulo,
+  required String valor,
+  required String destaque,
+  required Color corDestaque,
+}) {
+  return Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            titulo,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  valor,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: corDestaque.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  destaque,
+                  style: TextStyle(
+                    color: corDestaque,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 class PaginaResumo extends StatefulWidget {
   const PaginaResumo({super.key});
 
@@ -72,7 +136,14 @@ class _PaginaResumoState extends State<PaginaResumo> {
   @override
   void initState() {
     super.initState();
+    PaginaResumoStateContainer.recarregar = carregarDados;
     carregarDados();
+  }
+
+  @override
+  void dispose() {
+    PaginaResumoStateContainer.recarregar = null;
+    super.dispose();
   }
 
   Future<void> carregarDados() async {
@@ -111,6 +182,12 @@ class _PaginaResumoState extends State<PaginaResumo> {
       );
     }
 
+    final statusAtual = resumo.obterClassificacaoUltimoRegistro();
+    final corAtual = resumo.obterCorStatus(statusAtual);
+
+    final statusMedia = resumo.obterClassificacaoMedia();
+    final corMedia = resumo.obterCorStatus(statusMedia);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -120,31 +197,36 @@ class _PaginaResumoState extends State<PaginaResumo> {
             subtitle: Text('${resumo.totalRegistros}'),
           ),
         ),
-        Card(
-          child: ListTile(
-            title: const Text('Último registro'),
-            subtitle: Text(
+        construirCardIndicador(
+          titulo: 'Último registro',
+          valor:
               '${resumo.ultimoRegistro!.glicemia} mg/dL\n${formatarDataHora(resumo.ultimoRegistro!.dataHora)}',
-            ),
-          ),
+          destaque: statusAtual,
+          corDestaque: corAtual,
         ),
-        Card(
-          child: ListTile(
-            title: const Text('Média glicêmica'),
-            subtitle: Text('${resumo.mediaGlicemia.toStringAsFixed(1)} mg/dL'),
-          ),
+        construirCardIndicador(
+          titulo: 'Média glicêmica (últimos 30 dias)',
+          valor: resumo.mediaGlicemia == 0
+              ? 'Sem registros no último mês'
+              : '${resumo.mediaGlicemia.toStringAsFixed(1)} mg/dL',
+          destaque: statusMedia,
+          corDestaque: corMedia,
         ),
-        Card(
-          child: ListTile(
-            title: const Text('Maior valor'),
-            subtitle: Text('${resumo.maiorGlicemia} mg/dL'),
-          ),
+        construirCardIndicador(
+          titulo: 'Maior valor',
+          valor: resumo.maiorGlicemia != null
+              ? '${resumo.maiorGlicemia} mg/dL'
+              : 'Sem registros no último mês',
+          destaque: 'Últimos 30 dias',
+          corDestaque: Colors.blueGrey,
         ),
-        Card(
-          child: ListTile(
-            title: const Text('Menor valor'),
-            subtitle: Text('${resumo.menorGlicemia} mg/dL'),
-          ),
+        construirCardIndicador(
+          titulo: 'Menor valor',
+          valor: resumo.menorGlicemia != null
+              ? '${resumo.menorGlicemia} mg/dL'
+              : 'Sem registros no último mês',
+          destaque: 'Últimos 30 dias',
+          corDestaque: Colors.blueGrey,
         ),
       ],
     );
