@@ -3,6 +3,7 @@ import '../../../dados/modelos/registro_glicemico.dart';
 import '../../../dados/servicos/armazenamento_glicemia.dart';
 import '../../../dados/servicos/resumo_glicemico.dart';
 import '../../glicemia/paginas/pagina_glicemia.dart';
+import '../../anotacoes/paginas/pagina_anotacoes.dart';
 import '../../perfil/paginas/pagina_perfil.dart';
 
 class PaginaInicial extends StatefulWidget {
@@ -18,6 +19,7 @@ class _PaginaInicialState extends State<PaginaInicial> {
   final List<Widget> paginas = const [
     PaginaResumo(),
     PaginaGlicemia(),
+    PaginaAnotacoes(),
     PaginaPerfil(),
   ];
 
@@ -48,6 +50,11 @@ class _PaginaInicialState extends State<PaginaInicial> {
             icon: Icon(Icons.monitor_heart_outlined),
             selectedIcon: Icon(Icons.monitor_heart),
             label: 'Glicemia',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.note_alt_outlined),
+            selectedIcon: Icon(Icons.note_alt),
+            label: 'Anotações',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),

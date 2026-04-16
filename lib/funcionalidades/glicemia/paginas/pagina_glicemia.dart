@@ -15,6 +15,7 @@ class PaginaGlicemia extends StatefulWidget {
 class _PaginaGlicemiaState extends State<PaginaGlicemia> {
   final TextEditingController controladorGlicemia = TextEditingController();
   final TextEditingController controladorObservacao = TextEditingController();
+  final TextEditingController controladorBuscaObservacao = TextEditingController();
   Timer? temporizadorAtualizacaoPrazo;
 
   DateTime dataHoraSelecionada = DateTime.now();
@@ -64,7 +65,16 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
 
   List<RegistroGlicemico> obterRegistrosFiltradosEOrdenados() {
     final registrosFiltrados = obterRegistrosFiltrados();
-    final registrosOrdenados = [...registrosFiltrados];
+
+    final textoBusca = controladorBuscaObservacao.text.trim().toLowerCase();
+
+    final registrosComBusca = registrosFiltrados.where((registro) {
+      if (textoBusca.isEmpty) return true;
+
+      return registro.observacao.toLowerCase().contains(textoBusca);
+    }).toList();
+
+    final registrosOrdenados = [...registrosComBusca];
 
     if (ordenacaoSelecionada == 'Mais recentes') {
       registrosOrdenados.sort((registro1, registro2) {
@@ -254,6 +264,7 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
     temporizadorAtualizacaoPrazo?.cancel();
     controladorGlicemia.dispose();
     controladorObservacao.dispose();
+    controladorBuscaObservacao.dispose();
     super.dispose();
   }
 
@@ -735,73 +746,107 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
                       style: tema.textTheme.bodyMedium,
                     ),
                     const SizedBox(height: 20),
-                    DropdownButtonFormField<String>(
-                      value: filtroSelecionado,
-                      decoration: InputDecoration(
-                        labelText: 'Filtrar por período',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: filtroSelecionado,
+                            decoration: InputDecoration(
+                              labelText: 'Filtrar por período',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'Hoje',
+                                child: Text('Hoje'),
+                              ),
+                              DropdownMenuItem(
+                                value: '7 dias',
+                                child: Text('Últimos 7 dias'),
+                              ),
+                              DropdownMenuItem(
+                                value: '30 dias',
+                                child: Text('Últimos 30 dias'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Todos',
+                                child: Text('Todos'),
+                              ),
+                            ],
+                            onChanged: (valor) {
+                              if (valor == null) return;
+
+                              setState(() {
+                                filtroSelecionado = valor;
+                              });
+                            },
+                          ),
                         ),
-                      ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'Hoje',
-                          child: Text('Hoje'),
-                        ),
-                        DropdownMenuItem(
-                          value: '7 dias',
-                          child: Text('Últimos 7 dias'),
-                        ),
-                        DropdownMenuItem(
-                          value: '30 dias',
-                          child: Text('Últimos 30 dias'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Todos',
-                          child: Text('Todos'),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: ordenacaoSelecionada,
+                            decoration: InputDecoration(
+                              labelText: 'Ordenar por',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'Mais recentes',
+                                child: Text('Mais recentes'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Mais antigos',
+                                child: Text('Mais antigos'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Maior glicemia',
+                                child: Text('Maior glicemia'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Menor glicemia',
+                                child: Text('Menor glicemia'),
+                              ),
+                            ],
+                            onChanged: (valor) {
+                              if (valor == null) return;
+
+                              setState(() {
+                                ordenacaoSelecionada = valor;
+                              });
+                            },
+                          ),
                         ),
                       ],
-                      onChanged: (valor) {
-                        if (valor == null) return;
-
-                        setState(() {
-                          filtroSelecionado = valor;
-                        });
-                      },
                     ),
                     const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      value: ordenacaoSelecionada,
+                    TextField(
+                      controller: controladorBuscaObservacao,
                       decoration: InputDecoration(
-                        labelText: 'Ordenar por',
+                        labelText: 'Buscar na observação',
+                        hintText: 'Ex.: café, almoço, jejum',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: controladorBuscaObservacao.text.isNotEmpty
+                            ? IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    controladorBuscaObservacao.clear();
+                                  });
+                                },
+                                icon: const Icon(Icons.clear),
+                                tooltip: 'Limpar busca',
+                              )
+                            : null,
                       ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'Mais recentes',
-                          child: Text('Mais recentes'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Mais antigos',
-                          child: Text('Mais antigos'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Maior glicemia',
-                          child: Text('Maior glicemia'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Menor glicemia',
-                          child: Text('Menor glicemia'),
-                        ),
-                      ],
-                      onChanged: (valor) {
-                        if (valor == null) return;
-
-                        setState(() {
-                          ordenacaoSelecionada = valor;
-                        });
+                      onChanged: (_) {
+                        setState(() {});
                       },
                     ),
                     const SizedBox(height: 20),
