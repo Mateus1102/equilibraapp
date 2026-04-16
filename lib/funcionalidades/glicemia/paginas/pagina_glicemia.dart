@@ -3,6 +3,7 @@ import '../../../dados/modelos/registro_glicemico.dart';
 import '../../../dados/servicos/armazenamento_glicemia.dart';
 import 'pagina_edicao_glicemia.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'dart:async';
 
 class PaginaGlicemia extends StatefulWidget {
   const PaginaGlicemia({super.key});
@@ -14,10 +15,13 @@ class PaginaGlicemia extends StatefulWidget {
 class _PaginaGlicemiaState extends State<PaginaGlicemia> {
   final TextEditingController controladorGlicemia = TextEditingController();
   final TextEditingController controladorObservacao = TextEditingController();
+  Timer? temporizadorAtualizacaoPrazo;
 
   DateTime dataHoraSelecionada = DateTime.now();
   final List<RegistroGlicemico> registros = [];
   final armazenamento = ArmazenamentoGlicemia();
+  int horaSelecionada = DateTime.now().hour;
+  int minutoSelecionado = DateTime.now().minute;
 
   String filtroSelecionado = 'Todos';
   String ordenacaoSelecionada = 'Mais recentes';
@@ -235,10 +239,19 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
   void initState() {
     super.initState();
     carregarRegistros();
+
+    temporizadorAtualizacaoPrazo = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) {
+        if (!mounted) return;
+        setState(() {});
+      },
+    );
   }
 
   @override
   void dispose() {
+    temporizadorAtualizacaoPrazo?.cancel();
     controladorGlicemia.dispose();
     controladorObservacao.dispose();
     super.dispose();
@@ -268,41 +281,15 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
     if (dataSelecionada == null) return;
     if (!mounted) return;
 
-    final horaSelecionada = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(
-        dataSelecionada.year == agora.year &&
-                dataSelecionada.month == agora.month &&
-                dataSelecionada.day == agora.day
-            ? DateTime(
-                agora.year,
-                agora.month,
-                agora.day,
-                dataHoraSelecionada.hour > agora.hour
-                    ? agora.hour
-                    : dataHoraSelecionada.hour,
-                dataHoraSelecionada.hour == agora.hour &&
-                        dataHoraSelecionada.minute > agora.minute
-                    ? agora.minute
-                    : dataHoraSelecionada.minute,
-              )
-            : dataHoraSelecionada,
-      ),
-    );
-
-    if (horaSelecionada == null) return;
-
     final novaDataHora = DateTime(
       dataSelecionada.year,
       dataSelecionada.month,
       dataSelecionada.day,
-      horaSelecionada.hour,
-      horaSelecionada.minute,
+      horaSelecionada,
+      minutoSelecionado,
     );
 
     if (novaDataHora.isAfter(agora)) {
-      if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Não é permitido informar uma data e hora futura.'),
@@ -349,10 +336,28 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
       return;
     }
 
+  final dataHoraFinal = DateTime(
+    dataHoraSelecionada.year,
+    dataHoraSelecionada.month,
+    dataHoraSelecionada.day,
+    horaSelecionada,
+    minutoSelecionado,
+  );
+
+  if (dataHoraFinal.isAfter(DateTime.now())) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('A data e hora não podem estar em datas futuras.'),
+      ),
+    );
+    return;
+  }
+
     final novoRegistro = RegistroGlicemico(
       glicemia: glicemia,
-      dataHora: dataHoraSelecionada,
+      dataHora: dataHoraFinal,
       observacao: observacao,
+      dataCriacao: DateTime.now(),
     );
 
     setState(() {
@@ -360,6 +365,8 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
       controladorGlicemia.clear();
       controladorObservacao.clear();
       dataHoraSelecionada = DateTime.now();
+      horaSelecionada = DateTime.now().hour;
+      minutoSelecionado = DateTime.now().minute;
     });
 
     await armazenamento.salvar(registros);
@@ -390,6 +397,13 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
   }
 
   Future<void> confirmarExclusaoRegistro(int indice) async {
+    final registro = registros[indice];
+
+    if (!podeEditarOuExcluirRegistro(registro)) {
+      mostrarAvisoPrazoExpirado();
+      return;
+    }
+
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -423,6 +437,11 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
 
   Future<void> editarRegistro(int indice) async {
     final registroAtual = registros[indice];
+
+    if (!podeEditarOuExcluirRegistro(registroAtual)) {
+      mostrarAvisoPrazoExpirado();
+      return;
+    }
 
     final registroAtualizado =
         await Navigator.of(context).push<RegistroGlicemico>(
@@ -458,6 +477,29 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
     return '$dia/$mes/$ano às $hora:$minuto';
   }
 
+  bool podeEditarOuExcluirRegistro(RegistroGlicemico registro) {
+    final diferenca = DateTime.now().difference(registro.dataCriacao);
+    return diferenca.inHours < 24;
+  }
+
+  void mostrarAvisoPrazoExpirado() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Este registro só pode ser editado ou excluído em até 24 horas após o cadastro.',
+        ),
+      ),
+    );
+  }
+
+  List<int> obterHorasDisponiveis() {
+    return List.generate(24, (indice) => indice);
+  }
+
+  List<int> obterMinutosDisponiveis() {
+    return List.generate(60, (indice) => indice);
+  }
+
   Widget construirListaRegistros() {
     final registrosFiltrados = obterRegistrosFiltradosEOrdenados();
 
@@ -478,6 +520,7 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
 
         final classificacao = obterClassificacaoRegistro(registro.glicemia);
         final corClassificacao = obterCorClassificacaoRegistro(classificacao);
+        final podeAlterar = podeEditarOuExcluirRegistro(registro);
 
         return Card(
           margin: const EdgeInsets.only(top: 12),
@@ -510,22 +553,24 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
                   const SizedBox(height: 4),
                   Text('Observação: ${registro.observacao}'),
                 ],
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    IconButton(
-                      onPressed: () => editarRegistro(indiceOriginal),
-                      icon: const Icon(Icons.edit),
-                      tooltip: 'Editar',
-                    ),
-                    IconButton(
-                      onPressed: () => confirmarExclusaoRegistro(indiceOriginal),
-                      icon: const Icon(Icons.delete),
-                      tooltip: 'Excluir',
-                    ),
-                  ],
-                ),
+                if (podeAlterar) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      IconButton(
+                        onPressed: () => editarRegistro(indiceOriginal),
+                        icon: const Icon(Icons.edit),
+                        tooltip: 'Editar',
+                      ),
+                      IconButton(
+                        onPressed: () => confirmarExclusaoRegistro(indiceOriginal),
+                        icon: const Icon(Icons.delete),
+                        tooltip: 'Excluir',
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -587,13 +632,71 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
                       onTap: selecionarDataHora,
                       child: InputDecorator(
                         decoration: InputDecoration(
-                          labelText: 'Data e hora',
+                          labelText: 'Data da medição',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: Text(formatarDataHora(dataHoraSelecionada)),
+                        child: Text(
+                          '${dataHoraSelecionada.day.toString().padLeft(2, '0')}/'
+                          '${dataHoraSelecionada.month.toString().padLeft(2, '0')}/'
+                          '${dataHoraSelecionada.year}',
+                        ),
                       ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<int>(
+                            value: horaSelecionada,
+                            decoration: InputDecoration(
+                              labelText: 'Hora',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            items: obterHorasDisponiveis().map((hora) {
+                              return DropdownMenuItem(
+                                value: hora,
+                                child: Text(hora.toString().padLeft(2, '0')),
+                              );
+                            }).toList(),
+                            onChanged: (valor) {
+                              if (valor == null) return;
+
+                              setState(() {
+                                horaSelecionada = valor;
+                              });
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: DropdownButtonFormField<int>(
+                            value: minutoSelecionado,
+                            decoration: InputDecoration(
+                              labelText: 'Minuto',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            items: obterMinutosDisponiveis().map((minuto) {
+                              return DropdownMenuItem(
+                                value: minuto,
+                                child: Text(minuto.toString().padLeft(2, '0')),
+                              );
+                            }).toList(),
+                            onChanged: (valor) {
+                              if (valor == null) return;
+
+                              setState(() {
+                                minutoSelecionado = valor;
+                              });
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     TextField(

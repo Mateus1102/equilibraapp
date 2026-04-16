@@ -8,7 +8,9 @@ environment:
 
 dependencies:
   flutter:
-    sdk: flutter  
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   path_provider: ^2.1.2
   cupertino_icons: ^1.0.8
   fl_chart: ^0.69.0
