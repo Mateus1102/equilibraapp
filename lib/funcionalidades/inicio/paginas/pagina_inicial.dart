@@ -3,6 +3,7 @@ import '../../../dados/modelos/registro_glicemico.dart';
 import '../../../dados/servicos/armazenamento_glicemia.dart';
 import '../../../dados/servicos/resumo_glicemico.dart';
 import '../../glicemia/paginas/pagina_glicemia.dart';
+import '../../medicamentos/paginas/pagina_medicamentos.dart';
 import '../../anotacoes/paginas/pagina_anotacoes.dart';
 import '../../perfil/paginas/pagina_perfil.dart';
 
@@ -19,17 +20,18 @@ class _PaginaInicialState extends State<PaginaInicial> {
   final List<Widget> paginas = const [
     PaginaResumo(),
     PaginaGlicemia(),
+    PaginaMedicamentos(),
     PaginaAnotacoes(),
     PaginaPerfil(),
   ];
 
   void alterarPagina(int novoIndice) {
-  setState(() {
-    indiceAtual = novoIndice;
-  });
+    setState(() {
+      indiceAtual = novoIndice;
+    });
 
-  if (novoIndice == 0) {
-    PaginaResumoStateContainer.recarregar?.call();
+    if (novoIndice == 0) {
+      PaginaResumoStateContainer.recarregar?.call();
     }
   }
 
@@ -50,6 +52,11 @@ class _PaginaInicialState extends State<PaginaInicial> {
             icon: Icon(Icons.monitor_heart_outlined),
             selectedIcon: Icon(Icons.monitor_heart),
             label: 'Glicemia',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.medication_outlined),
+            selectedIcon: Icon(Icons.medication),
+            label: 'Medicamentos',
           ),
           NavigationDestination(
             icon: Icon(Icons.note_alt_outlined),
