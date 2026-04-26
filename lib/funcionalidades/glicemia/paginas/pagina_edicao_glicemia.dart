@@ -16,28 +16,47 @@ class PaginaEdicaoGlicemia extends StatefulWidget {
 class _PaginaEdicaoGlicemiaState extends State<PaginaEdicaoGlicemia> {
   late TextEditingController controladorGlicemia;
   late TextEditingController controladorObservacao;
+  late TextEditingController controladorHora;
+  late TextEditingController controladorMinuto;
   late DateTime dataHoraSelecionada;
-  late int horaSelecionada;
-  late int minutoSelecionado;
+  final FocusNode focoHora = FocusNode();
+  final FocusNode focoMinuto = FocusNode();
 
   @override
   void initState() {
     super.initState();
+
     controladorGlicemia = TextEditingController(
       text: widget.registro.glicemia.toString(),
     );
+
     controladorObservacao = TextEditingController(
       text: widget.registro.observacao,
     );
+
     dataHoraSelecionada = widget.registro.dataHora;
-    horaSelecionada = widget.registro.dataHora.hour;
-    minutoSelecionado = widget.registro.dataHora.minute;
+
+    controladorHora = TextEditingController(
+      text: widget.registro.dataHora.hour
+          .toString()
+          .padLeft(2, '0'),
+    );
+
+    controladorMinuto = TextEditingController(
+      text: widget.registro.dataHora.minute
+          .toString()
+          .padLeft(2, '0'),
+    );
   }
 
   @override
   void dispose() {
     controladorGlicemia.dispose();
     controladorObservacao.dispose();
+    controladorHora.dispose();
+    controladorMinuto.dispose();
+    focoHora.dispose();
+    focoMinuto.dispose();
     super.dispose();
   }
 
@@ -55,18 +74,23 @@ class _PaginaEdicaoGlicemiaState extends State<PaginaEdicaoGlicemia> {
 
     if (dataSelecionada == null) return;
 
+    final hora = int.tryParse(controladorHora.text) ?? 0;
+    final minuto = int.tryParse(controladorMinuto.text) ?? 0;
+
     final novaDataHora = DateTime(
       dataSelecionada.year,
       dataSelecionada.month,
       dataSelecionada.day,
-      horaSelecionada,
-      minutoSelecionado,
+      hora,
+      minuto,
     );
 
     if (novaDataHora.isAfter(agora)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Não é permitido informar uma data e hora futura.'),
+          content: Text(
+            'Não é permitido informar uma data e hora futura.',
+          ),
         ),
       );
       return;
@@ -101,23 +125,53 @@ class _PaginaEdicaoGlicemiaState extends State<PaginaEdicaoGlicemia> {
       return;
     }
 
+    final hora = int.tryParse(controladorHora.text) ?? -1;
+    final minuto = int.tryParse(controladorMinuto.text) ?? -1;
+
+    if (hora < 0 || hora > 23) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Informe uma hora válida entre 0 e 23.'),
+        ),
+      );
+      return;
+    }
+
+    if (minuto < 0 || minuto > 59) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Informe um minuto válido entre 0 e 59.'),
+        ),
+      );
+      return;
+    }
+
     final dataHoraFinal = DateTime(
       dataHoraSelecionada.year,
       dataHoraSelecionada.month,
       dataHoraSelecionada.day,
-      horaSelecionada,
-      minutoSelecionado,
+      hora,
+      minuto,
     );
 
     if (dataHoraFinal.isAfter(DateTime.now())) {
-      final registroAtualizado = widget.registro.copiarCom(
-        glicemia: glicemia,
-        dataHora: dataHoraFinal,
-        observacao: observacao,
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Não é permitido informar uma data e hora futura.',
+          ),
+        ),
       );
-
-      Navigator.of(context).pop(registroAtualizado);
+      return;
     }
+
+    final registroAtualizado = widget.registro.copiarCom(
+      glicemia: glicemia,
+      dataHora: dataHoraFinal,
+      observacao: observacao,
+    );
+
+    Navigator.of(context).pop(registroAtualizado);
   }
 
   @override
@@ -160,48 +214,40 @@ class _PaginaEdicaoGlicemiaState extends State<PaginaEdicaoGlicemia> {
               Row(
                 children: [
                   Expanded(
-                    child: DropdownButtonFormField<int>(
-                      value: horaSelecionada,
+                    child: TextField(
+                      controller: controladorHora,
+                      focusNode: focoHora,
+                      keyboardType: TextInputType.number,
+                      maxLength: 2,
+                      onChanged: (valor) {
+                        if (valor.length == 2) {
+                            FocusScope.of(context).requestFocus(focoMinuto);
+                          }
+                        },
                       decoration: const InputDecoration(
                         labelText: 'Hora',
+                        counterText: '',
                         border: OutlineInputBorder(),
                       ),
-                      items: List.generate(24, (i) => i).map((hora) {
-                        return DropdownMenuItem(
-                          value: hora,
-                          child: Text(hora.toString().padLeft(2, '0')),
-                        );
-                      }).toList(),
-                      onChanged: (valor) {
-                        if (valor == null) return;
-
-                        setState(() {
-                          horaSelecionada = valor;
-                        });
-                      },
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: DropdownButtonFormField<int>(
-                      value: minutoSelecionado,
+                    child: TextField(
+                      controller: controladorMinuto,
+                      focusNode: focoMinuto,
+                      keyboardType: TextInputType.number,
+                      maxLength: 2,
+                      onChanged: (valor) {
+                        if (valor.length == 2) {
+                          FocusScope.of(context).unfocus();
+                        }
+                      },
                       decoration: const InputDecoration(
                         labelText: 'Minuto',
+                        counterText: '',
                         border: OutlineInputBorder(),
                       ),
-                      items: List.generate(60, (i) => i).map((minuto) {
-                        return DropdownMenuItem(
-                          value: minuto,
-                          child: Text(minuto.toString().padLeft(2, '0')),
-                        );
-                      }).toList(),
-                      onChanged: (valor) {
-                        if (valor == null) return;
-
-                        setState(() {
-                          minutoSelecionado = valor;
-                        });
-                      },
                     ),
                   ),
                 ],

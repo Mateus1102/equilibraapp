@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+
 import '../../../dados/modelos/anotacao_diaria.dart';
 import '../../../dados/servicos/armazenamento_anotacoes.dart';
 
@@ -12,16 +13,22 @@ class PaginaAnotacoes extends StatefulWidget {
 
 class _PaginaAnotacoesState extends State<PaginaAnotacoes> {
   final TextEditingController controladorTexto = TextEditingController();
+  final TextEditingController controladorBusca = TextEditingController();
+
   final ArmazenamentoAnotacoes armazenamento = ArmazenamentoAnotacoes();
+
   Timer? temporizadorAtualizacaoPrazo;
 
   List<AnotacaoDiaria> anotacoes = [];
-  String filtroSelecionado = 'Todos';
-  final TextEditingController controladorBusca = TextEditingController();
+
+  String filtroSelecionado = 'Hoje';
+
+  final Color azulPrincipal = const Color(0xFF1565C0);
 
   @override
   void initState() {
     super.initState();
+
     carregarAnotacoes();
 
     temporizadorAtualizacaoPrazo = Timer.periodic(
@@ -88,20 +95,20 @@ class _PaginaAnotacoesState extends State<PaginaAnotacoes> {
   }
 
   Future<void> editarAnotacao(int indice) async {
-    final anotacaoAtual = anotacoes[indice];
+    final atual = anotacoes[indice];
 
-    if (!podeEditarOuExcluirAnotacao(anotacaoAtual)) {
+    if (!podeEditarOuExcluirAnotacao(atual)) {
       mostrarAvisoPrazoExpirado();
       return;
     }
 
     final controladorEdicao = TextEditingController(
-      text: anotacaoAtual.texto,
+      text: atual.texto,
     );
 
-    final textoAtualizado = await showDialog<String>(
+    final texto = await showDialog<String>(
       context: context,
-      builder: (context) {
+      builder: (_) {
         return AlertDialog(
           title: const Text('Editar anotação'),
           content: TextField(
@@ -114,12 +121,15 @@ class _PaginaAnotacoesState extends State<PaginaAnotacoes> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.pop(context),
               child: const Text('Cancelar'),
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.of(context).pop(controladorEdicao.text.trim());
+                Navigator.pop(
+                  context,
+                  controladorEdicao.text.trim(),
+                );
               },
               child: const Text('Salvar'),
             ),
@@ -130,23 +140,13 @@ class _PaginaAnotacoesState extends State<PaginaAnotacoes> {
 
     controladorEdicao.dispose();
 
-    if (textoAtualizado == null || textoAtualizado.isEmpty) return;
+    if (texto == null || texto.isEmpty) return;
 
     setState(() {
-      anotacoes[indice] = anotacaoAtual.copiarCom(
-        texto: textoAtualizado,
-      );
+      anotacoes[indice] = atual.copiarCom(texto: texto);
     });
 
     await armazenamento.salvar(anotacoes);
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Anotação atualizada com sucesso.'),
-      ),
-    );
   }
 
   Future<void> excluirAnotacao(int indice) async {
@@ -159,17 +159,19 @@ class _PaginaAnotacoesState extends State<PaginaAnotacoes> {
 
     final confirmar = await showDialog<bool>(
       context: context,
-      builder: (context) {
+      builder: (_) {
         return AlertDialog(
           title: const Text('Excluir anotação'),
-          content: const Text('Tem certeza que deseja excluir esta anotação?'),
+          content: const Text(
+            'Tem certeza que deseja excluir esta anotação?',
+          ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
+              onPressed: () => Navigator.pop(context, false),
               child: const Text('Cancelar'),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
+              onPressed: () => Navigator.pop(context, true),
               child: const Text('Excluir'),
             ),
           ],
@@ -184,24 +186,6 @@ class _PaginaAnotacoesState extends State<PaginaAnotacoes> {
     });
 
     await armazenamento.salvar(anotacoes);
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Anotação excluída com sucesso.'),
-      ),
-    );
-  }
-
-  String formatarDataHora(DateTime dataHora) {
-    final dia = dataHora.day.toString().padLeft(2, '0');
-    final mes = dataHora.month.toString().padLeft(2, '0');
-    final ano = dataHora.year.toString();
-    final hora = dataHora.hour.toString().padLeft(2, '0');
-    final minuto = dataHora.minute.toString().padLeft(2, '0');
-
-    return '$dia/$mes/$ano às $hora:$minuto';
   }
 
   bool podeEditarOuExcluirAnotacao(AnotacaoDiaria anotacao) {
@@ -219,101 +203,126 @@ class _PaginaAnotacoesState extends State<PaginaAnotacoes> {
     );
   }
 
+  String formatarDataHora(DateTime dataHora) {
+    final dia = dataHora.day.toString().padLeft(2, '0');
+    final mes = dataHora.month.toString().padLeft(2, '0');
+    final ano = dataHora.year.toString();
+    final hora = dataHora.hour.toString().padLeft(2, '0');
+    final minuto = dataHora.minute.toString().padLeft(2, '0');
+
+    return '$dia/$mes/$ano às $hora:$minuto';
+  }
+
   List<AnotacaoDiaria> obterAnotacoesFiltradas() {
     final agora = DateTime.now();
 
-    if (filtroSelecionado == 'Todos') {
-      return anotacoes;
-    }
-
     if (filtroSelecionado == 'Hoje') {
-      return anotacoes.where((anotacao) {
-        return anotacao.dataHora.year == agora.year &&
-            anotacao.dataHora.month == agora.month &&
-            anotacao.dataHora.day == agora.day;
+      return anotacoes.where((item) {
+        return item.dataHora.year == agora.year &&
+            item.dataHora.month == agora.month &&
+            item.dataHora.day == agora.day;
       }).toList();
     }
 
-    if (filtroSelecionado == '7 dias') {
-      final dataLimite = agora.subtract(const Duration(days: 7));
+    int dias = 7;
 
-      return anotacoes.where((anotacao) {
-        return !anotacao.dataHora.isBefore(dataLimite) &&
-            !anotacao.dataHora.isAfter(agora);
-      }).toList();
-    }
+    if (filtroSelecionado == '15 dias') dias = 15;
+    if (filtroSelecionado == '30 dias') dias = 30;
+    if (filtroSelecionado == '60 dias') dias = 60;
+    if (filtroSelecionado == '90 dias') dias = 90;
 
-    if (filtroSelecionado == '30 dias') {
-      final dataLimite = agora.subtract(const Duration(days: 30));
+    final limite = agora.subtract(Duration(days: dias));
 
-      return anotacoes.where((anotacao) {
-        return !anotacao.dataHora.isBefore(dataLimite) &&
-            !anotacao.dataHora.isAfter(agora);
-      }).toList();
-    }
-
-    return anotacoes;
-  }
-
-  List<AnotacaoDiaria> obterAnotacoesFiltradasComBusca() {
-    final anotacoesFiltradas = obterAnotacoesFiltradas();
-    final textoBusca = controladorBusca.text.trim().toLowerCase();
-
-    return anotacoesFiltradas.where((anotacao) {
-      if (textoBusca.isEmpty) return true;
-
-      return anotacao.texto.toLowerCase().contains(textoBusca);
+    return anotacoes.where((item) {
+      return !item.dataHora.isBefore(limite);
     }).toList();
   }
 
-  Widget construirListaAnotacoes() {
-    final anotacoesFiltradas = obterAnotacoesFiltradasComBusca();
+  List<AnotacaoDiaria> obterAnotacoesComBusca() {
+    final lista = obterAnotacoesFiltradas();
 
-    if (anotacoesFiltradas.isEmpty) {
+    final busca = controladorBusca.text.trim().toLowerCase();
+
+    return lista.where((item) {
+      if (busca.isEmpty) return true;
+
+      return item.texto.toLowerCase().contains(busca);
+    }).toList();
+  }
+
+  Widget cardModerno({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  Widget construirListaAnotacoes() {
+    final lista = obterAnotacoesComBusca();
+
+    if (lista.isEmpty) {
       return const Padding(
-        padding: EdgeInsets.only(top: 24),
-        child: Text('Nenhuma anotação encontrada para os filtros selecionados.'),
+        padding: EdgeInsets.only(top: 20),
+        child: Text('Nenhuma anotação encontrada.'),
       );
     }
 
     return ListView.builder(
-      itemCount: anotacoesFiltradas.length,
+      itemCount: lista.length,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemBuilder: (context, indice) {
-        final anotacao = anotacoesFiltradas[indice];
+      itemBuilder: (_, indice) {
+        final anotacao = lista[indice];
         final indiceOriginal = anotacoes.indexOf(anotacao);
         final podeAlterar = podeEditarOuExcluirAnotacao(anotacao);
 
-        return Card(
-          margin: const EdgeInsets.only(top: 12),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
+        return Container(
+          margin: const EdgeInsets.only(bottom: 14),
+          child: cardModerno(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   formatarDataHora(anotacao.dataHora),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
+                    color: azulPrincipal,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(anotacao.texto),
+                const SizedBox(height: 10),
+                Text(
+                  anotacao.texto,
+                  style: const TextStyle(fontSize: 15),
+                ),
                 if (podeAlterar) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       IconButton(
                         onPressed: () => editarAnotacao(indiceOriginal),
-                        icon: const Icon(Icons.edit),
-                        tooltip: 'Editar',
+                        icon: Icon(
+                          Icons.edit_outlined,
+                          color: azulPrincipal,
+                        ),
                       ),
                       IconButton(
                         onPressed: () => excluirAnotacao(indiceOriginal),
-                        icon: const Icon(Icons.delete),
-                        tooltip: 'Excluir',
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: Colors.red,
+                        ),
                       ),
                     ],
                   ),
@@ -331,118 +340,170 @@ class _PaginaAnotacoesState extends State<PaginaAnotacoes> {
     final tema = Theme.of(context);
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF7FAFF),
       appBar: AppBar(
-        title: const Text('Anotações'),
+        elevation: 0,
         centerTitle: true,
+        backgroundColor: azulPrincipal,
+        title: const Text(
+          'Anotações',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                'Registrar anotação diária',
-                style: tema.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Use este espaço para sintomas, alimentação, atividades ou observações importantes.',
-                style: tema.textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: controladorTexto,
-                maxLines: 5,
-                decoration: InputDecoration(
-                  labelText: 'Anotação',
-                  hintText: 'Ex.: Hoje senti tontura após o almoço.',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+              cardModerno(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Registrar anotação diária',
+                      style: tema.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: azulPrincipal,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Use este espaço para sintomas, alimentação, atividades ou observações importantes.',
+                      style: tema.textTheme.bodyMedium?.copyWith(
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    TextField(
+                      controller: controladorTexto,
+                      maxLines: 5,
+                      decoration: InputDecoration(
+                        labelText: 'Anotação',
+                        hintText:
+                            'Ex.: Hoje senti tontura após o almoço.',
+                        prefixIcon: const Padding(
+                          padding: EdgeInsets.only(bottom: 90),
+                          child: Icon(Icons.edit_note_outlined),
+                        ),
+                        filled: true,
+                        fillColor: Colors.blue.shade50,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    SizedBox(
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: salvarAnotacao,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: azulPrincipal,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                        child: const Text(
+                          'Salvar anotação',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: salvarAnotacao,
-                child: const Text('Salvar anotação'),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Histórico de anotações',
-                style: tema.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Use os filtros para localizar anotações com mais facilidade.',
-                style: tema.textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: controladorBusca,
-                decoration: InputDecoration(
-                  labelText: 'Buscar por palavra',
-                  hintText: 'Ex.: tontura, almoço, caminhada',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: controladorBusca.text.isNotEmpty
-                      ? IconButton(
-                          onPressed: () {
-                            setState(() {
-                              controladorBusca.clear();
-                            });
-                          },
-                          icon: const Icon(Icons.clear),
-                          tooltip: 'Limpar busca',
-                        )
-                      : null,
-                ),
-                onChanged: (_) {
-                  setState(() {});
-                },
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: filtroSelecionado,
-                decoration: InputDecoration(
-                  labelText: 'Filtrar por período',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'Hoje',
-                    child: Text('Hoje'),
-                  ),
-                  DropdownMenuItem(
-                    value: '7 dias',
-                    child: Text('Últimos 7 dias'),
-                  ),
-                  DropdownMenuItem(
-                    value: '30 dias',
-                    child: Text('Últimos 30 dias'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'Todos',
-                    child: Text('Todos'),
-                  ),
-                ],
-                onChanged: (valor) {
-                  if (valor == null) return;
+              cardModerno(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Histórico',
+                      style: tema.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: azulPrincipal,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: controladorBusca,
+                      onChanged: (_) => setState(() {}),
+                      decoration: InputDecoration(
+                        labelText: 'Buscar anotação',
+                        prefixIcon: const Icon(Icons.search),
+                        filled: true,
+                        fillColor: Colors.blue.shade50,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: BorderSide.none,
+                        ),
+                        suffixIcon: controladorBusca.text.isNotEmpty
+                            ? IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    controladorBusca.clear();
+                                  });
+                                },
+                                icon: const Icon(Icons.close),
+                              )
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      value: filtroSelecionado,
+                      decoration: InputDecoration(
+                        labelText: 'Período',
+                        filled: true,
+                        fillColor: Colors.blue.shade50,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'Hoje',
+                          child: Text('Hoje'),
+                        ),
+                        DropdownMenuItem(
+                          value: '7 dias',
+                          child: Text('Últimos 7 dias'),
+                        ),
+                        DropdownMenuItem(
+                          value: '15 dias',
+                          child: Text('Últimos 15 dias'),
+                        ),
+                        DropdownMenuItem(
+                          value: '30 dias',
+                          child: Text('Últimos 30 dias'),
+                        ),
+                        DropdownMenuItem(
+                          value: '60 dias',
+                          child: Text('Últimos 60 dias'),
+                        ),
+                        DropdownMenuItem(
+                          value: '90 dias',
+                          child: Text('Últimos 90 dias'),
+                        ),
+                      ],
+                      onChanged: (valor) {
+                        if (valor == null) return;
 
-                  setState(() {
-                    filtroSelecionado = valor;
-                  });
-                },
+                        setState(() {
+                          filtroSelecionado = valor;
+                        });
+                      },
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 20),
               construirListaAnotacoes(),
             ],
           ),
