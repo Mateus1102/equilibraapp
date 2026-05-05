@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../dados/modelos/medicamentos.dart';
+import '../../../dados/modelos/controle_medicamento_diario.dart';
 import '../../../dados/servicos/armazenamento_medicamentos.dart';
+import '../../../dados/servicos/armazenamento_controle_medicamentos.dart';
 
 class PaginaMedicamentos extends StatefulWidget {
   const PaginaMedicamentos({super.key});
@@ -12,22 +14,29 @@ class PaginaMedicamentos extends StatefulWidget {
 
 class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
   final TextEditingController controladorNome = TextEditingController();
-  final TextEditingController controladorDosagem = TextEditingController();
   final TextEditingController controladorObservacao = TextEditingController();
   final TextEditingController controladorBusca = TextEditingController();
 
-  final ArmazenamentoMedicamentos armazenamento =
-      ArmazenamentoMedicamentos();
+  final ArmazenamentoMedicamentos armazenamento = ArmazenamentoMedicamentos();
+  final ArmazenamentoControleMedicamentos armazenamentoControle =
+      ArmazenamentoControleMedicamentos();
 
   Timer? temporizadorAtualizacaoPrazo;
 
   List<Medicamento> medicamentos = [];
-  String filtroSelecionado = 'Todos';
+  List<ControleMedicamentoDiario> controles = [];
+
+  String tipoSelecionado = 'Comprimido';
+  String refeicaoSelecionada = 'Café da manhã';
+  String momentoSelecionado = 'Após a refeição';
+
+  final Color azulPrincipal = const Color(0xFF1565C0);
+  final Color fundoTela = const Color(0xFFF6F9FF);
 
   @override
   void initState() {
     super.initState();
-    carregarMedicamentos();
+    carregarDados();
 
     temporizadorAtualizacaoPrazo = Timer.periodic(
       const Duration(seconds: 15),
@@ -42,172 +51,268 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
   void dispose() {
     temporizadorAtualizacaoPrazo?.cancel();
     controladorNome.dispose();
-    controladorDosagem.dispose();
     controladorObservacao.dispose();
     controladorBusca.dispose();
     super.dispose();
   }
 
-  Future<void> carregarMedicamentos() async {
-    final dados = await armazenamento.carregar();
+  Future<void> carregarDados() async {
+    final dadosMedicamentos = await armazenamento.carregar();
+    final dadosControles = await armazenamentoControle.carregar();
 
     if (!mounted) return;
 
     setState(() {
-      medicamentos = dados;
+      medicamentos = dadosMedicamentos;
+      controles = dadosControles;
     });
+  }
+
+  String obterDataHoje() {
+    final agora = DateTime.now();
+    final ano = agora.year.toString();
+    final mes = agora.month.toString().padLeft(2, '0');
+    final dia = agora.day.toString().padLeft(2, '0');
+
+    return '$ano-$mes-$dia';
+  }
+
+  void mostrarMensagem(String texto) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(texto)),
+    );
+  }
+
+  bool estaTomado(Medicamento medicamento) {
+    final hoje = obterDataHoje();
+
+    return controles.any((controle) {
+      return controle.medicamentoId == medicamento.id &&
+          controle.dataControle == hoje &&
+          controle.tomado;
+    });
+  }
+
+  Future<void> alternarTomado(Medicamento medicamento, bool tomado) async {
+    final hoje = obterDataHoje();
+
+    final indice = controles.indexWhere((controle) {
+      return controle.medicamentoId == medicamento.id &&
+          controle.dataControle == hoje;
+    });
+
+    setState(() {
+      if (indice >= 0) {
+        controles[indice] = controles[indice].copiarCom(
+          tomado: tomado,
+          dataConfirmacao: tomado ? DateTime.now() : null,
+        );
+      } else {
+        controles.add(
+          ControleMedicamentoDiario(
+            medicamentoId: medicamento.id,
+            dataControle: hoje,
+            tomado: tomado,
+            dataConfirmacao: tomado ? DateTime.now() : null,
+          ),
+        );
+      }
+    });
+
+    await armazenamentoControle.salvar(controles);
   }
 
   Future<void> salvarMedicamento() async {
     final nome = controladorNome.text.trim();
-    final dosagem = controladorDosagem.text.trim();
     final observacao = controladorObservacao.text.trim();
 
     if (nome.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Informe o nome do medicamento.'),
-        ),
-      );
+      mostrarMensagem('Informe o nome do medicamento.');
       return;
     }
-
-    if (dosagem.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Informe a dosagem do medicamento.'),
-        ),
-      );
-      return;
-    }
-
-    final agora = DateTime.now();
 
     final novoMedicamento = Medicamento(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
       nome: nome,
-      dosagem: dosagem,
+      tipo: tipoSelecionado,
+      refeicao: refeicaoSelecionada,
+      momento: momentoSelecionado,
       observacao: observacao,
-      dataHora: agora,
-      dataCriacao: agora,
+      dataCriacao: DateTime.now(),
     );
 
     setState(() {
       medicamentos.insert(0, novoMedicamento);
       controladorNome.clear();
-      controladorDosagem.clear();
       controladorObservacao.clear();
+      tipoSelecionado = 'Comprimido';
+      refeicaoSelecionada = 'Café da manhã';
+      momentoSelecionado = 'Após a refeição';
     });
 
     await armazenamento.salvar(medicamentos);
 
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Medicamento salvo com sucesso.'),
-      ),
-    );
-  }
-
-  bool podeEditarOuExcluirMedicamento(Medicamento medicamento) {
-    final diferenca = DateTime.now().difference(medicamento.dataCriacao);
-    return diferenca.inHours < 24;
-  }
-
-  void mostrarAvisoPrazoExpirado() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Este medicamento só pode ser editado ou excluído em até 24 horas após o cadastro.',
-        ),
-      ),
-    );
+    mostrarMensagem('Medicamento salvo com sucesso.');
   }
 
   Future<void> editarMedicamento(int indice) async {
     final medicamentoAtual = medicamentos[indice];
 
-    if (!podeEditarOuExcluirMedicamento(medicamentoAtual)) {
-      mostrarAvisoPrazoExpirado();
-      return;
-    }
+    String tipoEdicao = medicamentoAtual.tipo;
+    String refeicaoEdicao = medicamentoAtual.refeicao;
+    String momentoEdicao = medicamentoAtual.momento;
 
     final controladorNomeEdicao = TextEditingController(
       text: medicamentoAtual.nome,
     );
-    final controladorDosagemEdicao = TextEditingController(
-      text: medicamentoAtual.dosagem,
-    );
+
     final controladorObservacaoEdicao = TextEditingController(
       text: medicamentoAtual.observacao,
     );
 
     final medicamentoAtualizado = await showDialog<Medicamento>(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Editar medicamento'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: controladorNomeEdicao,
-                  decoration: const InputDecoration(
-                    labelText: 'Nome',
-                    border: OutlineInputBorder(),
-                  ),
+      builder: (_) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text('Editar medicamento'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: controladorNomeEdicao,
+                      decoration: const InputDecoration(
+                        labelText: 'Nome do medicamento',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: tipoEdicao,
+                      decoration: const InputDecoration(
+                        labelText: 'Tipo',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'Comprimido',
+                          child: Text('Comprimido'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Insulina',
+                          child: Text('Insulina'),
+                        ),
+                      ],
+                      onChanged: (valor) {
+                        if (valor == null) return;
+
+                        setStateDialog(() {
+                          tipoEdicao = valor;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: refeicaoEdicao,
+                      decoration: const InputDecoration(
+                        labelText: 'Refeição',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'Café da manhã',
+                          child: Text('Café da manhã'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Almoço',
+                          child: Text('Almoço'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Jantar',
+                          child: Text('Jantar'),
+                        ),
+                      ],
+                      onChanged: (valor) {
+                        if (valor == null) return;
+
+                        setStateDialog(() {
+                          refeicaoEdicao = valor;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: momentoEdicao,
+                      decoration: const InputDecoration(
+                        labelText: 'Momento',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'Antes da refeição',
+                          child: Text('Antes da refeição'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Após a refeição',
+                          child: Text('Após a refeição'),
+                        ),
+                      ],
+                      onChanged: (valor) {
+                        if (valor == null) return;
+
+                        setStateDialog(() {
+                          momentoEdicao = valor;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: controladorObservacaoEdicao,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: 'Observação',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: controladorDosagemEdicao,
-                  decoration: const InputDecoration(
-                    labelText: 'Dosagem',
-                    border: OutlineInputBorder(),
-                  ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancelar'),
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: controladorObservacaoEdicao,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Observação',
-                    border: OutlineInputBorder(),
-                  ),
+                ElevatedButton(
+                  onPressed: () {
+                    final nome = controladorNomeEdicao.text.trim();
+
+                    if (nome.isEmpty) return;
+
+                    Navigator.pop(
+                      context,
+                      medicamentoAtual.copiarCom(
+                        nome: nome,
+                        tipo: tipoEdicao,
+                        refeicao: refeicaoEdicao,
+                        momento: momentoEdicao,
+                        observacao: controladorObservacaoEdicao.text.trim(),
+                      ),
+                    );
+                  },
+                  child: const Text('Salvar'),
                 ),
               ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final nome = controladorNomeEdicao.text.trim();
-                final dosagem = controladorDosagemEdicao.text.trim();
-                final observacao = controladorObservacaoEdicao.text.trim();
-
-                if (nome.isEmpty || dosagem.isEmpty) return;
-
-                Navigator.of(context).pop(
-                  medicamentoAtual.copiarCom(
-                    nome: nome,
-                    dosagem: dosagem,
-                    observacao: observacao,
-                  ),
-                );
-              },
-              child: const Text('Salvar'),
-            ),
-          ],
+            );
+          },
         );
       },
     );
 
     controladorNomeEdicao.dispose();
-    controladorDosagemEdicao.dispose();
     controladorObservacaoEdicao.dispose();
 
     if (medicamentoAtualizado == null) return;
@@ -218,26 +323,15 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
 
     await armazenamento.salvar(medicamentos);
 
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Medicamento atualizado com sucesso.'),
-      ),
-    );
+    mostrarMensagem('Medicamento atualizado com sucesso.');
   }
 
   Future<void> excluirMedicamento(int indice) async {
     final medicamento = medicamentos[indice];
 
-    if (!podeEditarOuExcluirMedicamento(medicamento)) {
-      mostrarAvisoPrazoExpirado();
-      return;
-    }
-
     final confirmar = await showDialog<bool>(
       context: context,
-      builder: (context) {
+      builder: (_) {
         return AlertDialog(
           title: const Text('Excluir medicamento'),
           content: const Text(
@@ -245,11 +339,11 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
+              onPressed: () => Navigator.pop(context, false),
               child: const Text('Cancelar'),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
+              onPressed: () => Navigator.pop(context, true),
               child: const Text('Excluir'),
             ),
           ],
@@ -261,141 +355,460 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
 
     setState(() {
       medicamentos.removeAt(indice);
+      controles.removeWhere(
+        (controle) => controle.medicamentoId == medicamento.id,
+      );
     });
 
     await armazenamento.salvar(medicamentos);
+    await armazenamentoControle.salvar(controles);
 
-    if (!mounted) return;
+    mostrarMensagem('Medicamento excluído com sucesso.');
+  }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Medicamento excluído com sucesso.'),
+  List<Medicamento> obterMedicamentosFiltrados() {
+    final busca = controladorBusca.text.trim().toLowerCase();
+
+    return medicamentos.where((medicamento) {
+      if (busca.isEmpty) return true;
+
+      return medicamento.nome.toLowerCase().contains(busca) ||
+          medicamento.tipo.toLowerCase().contains(busca) ||
+          medicamento.refeicao.toLowerCase().contains(busca) ||
+          medicamento.momento.toLowerCase().contains(busca) ||
+          medicamento.observacao.toLowerCase().contains(busca);
+    }).toList();
+  }
+
+  List<Medicamento> obterMedicamentosPorRefeicao(String refeicao) {
+    return obterMedicamentosFiltrados().where((medicamento) {
+      return medicamento.refeicao == refeicao;
+    }).toList();
+  }
+
+  Widget cardModerno({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  Widget campoDecorado({required Widget child}) {
+    return Theme(
+      data: Theme.of(context).copyWith(
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.blue.shade50,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(18),
+            borderSide: BorderSide.none,
+          ),
+        ),
+      ),
+      child: child,
+    );
+  }
+
+  Widget construirCardMedicamento(
+    Medicamento medicamento,
+    int indiceOriginal, {
+    bool mostrarCheck = false,
+  }) {
+    final tomado = estaTomado(medicamento);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            medicamento.nome,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text('Tipo: ${medicamento.tipo}'),
+          Text('Refeição: ${medicamento.refeicao}'),
+          Text('Momento: ${medicamento.momento}'),
+          if (medicamento.observacao.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text('Observação: ${medicamento.observacao}'),
+          ],
+          const SizedBox(height: 10),
+          if (mostrarCheck)
+            Row(
+              children: [
+                Checkbox(
+                  value: tomado,
+                  activeColor: azulPrincipal,
+                  onChanged: (valor) {
+                    alternarTomado(medicamento, valor ?? false);
+                  },
+                ),
+                Text(
+                  tomado ? 'Tomado hoje' : 'Pendente hoje',
+                  style: TextStyle(
+                    color: tomado ? Colors.green : Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              IconButton(
+                onPressed: () => editarMedicamento(indiceOriginal),
+                icon: Icon(
+                  Icons.edit_outlined,
+                  color: azulPrincipal,
+                ),
+              ),
+              IconButton(
+                onPressed: () => excluirMedicamento(indiceOriginal),
+                icon: const Icon(
+                  Icons.delete_outline,
+                  color: Colors.red,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  List<Medicamento> obterMedicamentosFiltrados() {
-    final agora = DateTime.now();
+  Widget construirGrupoRefeicao(String refeicao, IconData icone) {
+    final lista = obterMedicamentosPorRefeicao(refeicao);
 
-    if (filtroSelecionado == 'Todos') {
-      return medicamentos;
-    }
-
-    if (filtroSelecionado == 'Hoje') {
-      return medicamentos.where((medicamento) {
-        return medicamento.dataHora.year == agora.year &&
-            medicamento.dataHora.month == agora.month &&
-            medicamento.dataHora.day == agora.day;
-      }).toList();
-    }
-
-    if (filtroSelecionado == '7 dias') {
-      final dataLimite = agora.subtract(const Duration(days: 7));
-
-      return medicamentos.where((medicamento) {
-        return !medicamento.dataHora.isBefore(dataLimite) &&
-            !medicamento.dataHora.isAfter(agora);
-      }).toList();
-    }
-
-    if (filtroSelecionado == '30 dias') {
-      final dataLimite = agora.subtract(const Duration(days: 30));
-
-      return medicamentos.where((medicamento) {
-        return !medicamento.dataHora.isBefore(dataLimite) &&
-            !medicamento.dataHora.isAfter(agora);
-      }).toList();
-    }
-
-    return medicamentos;
-  }
-
-  List<Medicamento> obterMedicamentosFiltradosComBusca() {
-    final medicamentosFiltrados = obterMedicamentosFiltrados();
-    final textoBusca = controladorBusca.text.trim().toLowerCase();
-
-    return medicamentosFiltrados.where((medicamento) {
-      if (textoBusca.isEmpty) return true;
-
-      return medicamento.nome.toLowerCase().contains(textoBusca) ||
-          medicamento.observacao.toLowerCase().contains(textoBusca);
-    }).toList();
-  }
-
-  String formatarDataHora(DateTime dataHora) {
-    final dia = dataHora.day.toString().padLeft(2, '0');
-    final mes = dataHora.month.toString().padLeft(2, '0');
-    final ano = dataHora.year.toString();
-    final hora = dataHora.hour.toString().padLeft(2, '0');
-    final minuto = dataHora.minute.toString().padLeft(2, '0');
-
-    return '$dia/$mes/$ano às $hora:$minuto';
-  }
-
-  Widget construirListaMedicamentos() {
-    final medicamentosFiltrados = obterMedicamentosFiltradosComBusca();
-
-    if (medicamentosFiltrados.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.only(top: 24),
-        child: Text('Nenhum medicamento encontrado para os filtros selecionados.'),
-      );
-    }
-
-    return ListView.builder(
-      itemCount: medicamentosFiltrados.length,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemBuilder: (context, indice) {
-        final medicamento = medicamentosFiltrados[indice];
-        final indiceOriginal = medicamentos.indexOf(medicamento);
-        final podeAlterar = podeEditarOuExcluirMedicamento(medicamento);
-
-        return Card(
-          margin: const EdgeInsets.only(top: 12),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 18),
+      child: cardModerno(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
+                Icon(icone, color: azulPrincipal),
+                const SizedBox(width: 8),
                 Text(
-                  medicamento.nome,
-                  style: const TextStyle(
+                  refeicao,
+                  style: TextStyle(
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    color: azulPrincipal,
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text('Dosagem: ${medicamento.dosagem}'),
-                const SizedBox(height: 4),
-                Text(formatarDataHora(medicamento.dataHora)),
-                if (medicamento.observacao.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text('Observação: ${medicamento.observacao}'),
-                ],
-                if (podeAlterar) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      IconButton(
-                        onPressed: () => editarMedicamento(indiceOriginal),
-                        icon: const Icon(Icons.edit),
-                        tooltip: 'Editar',
-                      ),
-                      IconButton(
-                        onPressed: () => excluirMedicamento(indiceOriginal),
-                        icon: const Icon(Icons.delete),
-                        tooltip: 'Excluir',
-                      ),
-                    ],
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (lista.isEmpty)
+              const Text('Nenhum medicamento cadastrado para esta refeição.'),
+            ...lista.map((medicamento) {
+              final indiceOriginal = medicamentos.indexOf(medicamento);
+
+              return construirCardMedicamento(
+                medicamento,
+                indiceOriginal,
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget abaCadastrar(ThemeData tema) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: cardModerno(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Cadastrar rotina medicamentosa',
+              style: tema.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: azulPrincipal,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Cadastre o medicamento conforme a refeição em que ele deve ser utilizado.',
+              style: tema.textTheme.bodyMedium?.copyWith(
+                color: Colors.grey.shade700,
+              ),
+            ),
+            const SizedBox(height: 24),
+            campoDecorado(
+              child: TextField(
+                controller: controladorNome,
+                decoration: const InputDecoration(
+                  labelText: 'Nome do medicamento',
+                  prefixIcon: Icon(Icons.medication_outlined),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            campoDecorado(
+              child: DropdownButtonFormField<String>(
+                value: tipoSelecionado,
+                decoration: const InputDecoration(
+                  labelText: 'Tipo',
+                  prefixIcon: Icon(Icons.category_outlined),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'Comprimido',
+                    child: Text('Comprimido'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Insulina',
+                    child: Text('Insulina'),
                   ),
                 ],
+                onChanged: (valor) {
+                  if (valor == null) return;
+
+                  setState(() {
+                    tipoSelecionado = valor;
+                  });
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+            campoDecorado(
+              child: DropdownButtonFormField<String>(
+                value: refeicaoSelecionada,
+                decoration: const InputDecoration(
+                  labelText: 'Refeição',
+                  prefixIcon: Icon(Icons.restaurant_outlined),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'Café da manhã',
+                    child: Text('Café da manhã'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Almoço',
+                    child: Text('Almoço'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Jantar',
+                    child: Text('Jantar'),
+                  ),
+                ],
+                onChanged: (valor) {
+                  if (valor == null) return;
+
+                  setState(() {
+                    refeicaoSelecionada = valor;
+                  });
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+            campoDecorado(
+              child: DropdownButtonFormField<String>(
+                value: momentoSelecionado,
+                decoration: const InputDecoration(
+                  labelText: 'Momento',
+                  prefixIcon: Icon(Icons.schedule_outlined),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'Antes da refeição',
+                    child: Text('Antes da refeição'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Após a refeição',
+                    child: Text('Após a refeição'),
+                  ),
+                ],
+                onChanged: (valor) {
+                  if (valor == null) return;
+
+                  setState(() {
+                    momentoSelecionado = valor;
+                  });
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+            campoDecorado(
+              child: TextField(
+                controller: controladorObservacao,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Observação',
+                  prefixIcon: Padding(
+                    padding: EdgeInsets.only(bottom: 52),
+                    child: Icon(Icons.edit_note_outlined),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              height: 56,
+              child: ElevatedButton(
+                onPressed: salvarMedicamento,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: azulPrincipal,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+                child: const Text(
+                  'Salvar medicamento',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget abaRotina(ThemeData tema) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          cardModerno(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Rotina por refeição',
+                  style: tema.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: azulPrincipal,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Veja quais medicamentos estão vinculados a cada grande refeição.',
+                  style: tema.textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                campoDecorado(
+                  child: TextField(
+                    controller: controladorBusca,
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      labelText: 'Buscar medicamento',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: controladorBusca.text.isNotEmpty
+                          ? IconButton(
+                              onPressed: () {
+                                controladorBusca.clear();
+                                setState(() {});
+                              },
+                              icon: const Icon(Icons.close),
+                            )
+                          : null,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
-        );
-      },
+          const SizedBox(height: 20),
+          construirGrupoRefeicao(
+            'Café da manhã',
+            Icons.free_breakfast_outlined,
+          ),
+          construirGrupoRefeicao(
+            'Almoço',
+            Icons.lunch_dining_outlined,
+          ),
+          construirGrupoRefeicao(
+            'Jantar',
+            Icons.dinner_dining_outlined,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget abaHoje(ThemeData tema) {
+    final lista = obterMedicamentosFiltrados();
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          cardModerno(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Medicamentos de hoje',
+                  style: tema.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: azulPrincipal,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Marque os medicamentos que já foram tomados hoje.',
+                  style: tema.textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          if (lista.isEmpty)
+            cardModerno(
+              child: const Text(
+                'Nenhum medicamento cadastrado para acompanhamento.',
+              ),
+            ),
+          ...lista.map((medicamento) {
+            final indiceOriginal = medicamentos.indexOf(medicamento);
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 14),
+              child: cardModerno(
+                child: construirCardMedicamento(
+                  medicamento,
+                  indiceOriginal,
+                  mostrarCheck: true,
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
     );
   }
 
@@ -403,137 +816,40 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
   Widget build(BuildContext context) {
     final tema = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Medicamentos'),
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Cadastrar medicamento',
-                style: tema.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Registre seus medicamentos para manter seu acompanhamento organizado.',
-                style: tema.textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: controladorNome,
-                decoration: InputDecoration(
-                  labelText: 'Nome do medicamento',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: controladorDosagem,
-                decoration: InputDecoration(
-                  labelText: 'Dosagem',
-                  hintText: 'Ex.: 500 mg',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: controladorObservacao,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: 'Observação',
-                  hintText: 'Ex.: tomar após o almoço',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: salvarMedicamento,
-                child: const Text('Salvar medicamento'),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Histórico de medicamentos',
-                style: tema.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: controladorBusca,
-                decoration: InputDecoration(
-                  labelText: 'Buscar por nome ou observação',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: controladorBusca.text.isNotEmpty
-                      ? IconButton(
-                          onPressed: () {
-                            setState(() {
-                              controladorBusca.clear();
-                            });
-                          },
-                          icon: const Icon(Icons.clear),
-                          tooltip: 'Limpar busca',
-                        )
-                      : null,
-                ),
-                onChanged: (_) {
-                  setState(() {});
-                },
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: filtroSelecionado,
-                decoration: InputDecoration(
-                  labelText: 'Filtrar por período',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'Hoje',
-                    child: Text('Hoje'),
-                  ),
-                  DropdownMenuItem(
-                    value: '7 dias',
-                    child: Text('Últimos 7 dias'),
-                  ),
-                  DropdownMenuItem(
-                    value: '30 dias',
-                    child: Text('Últimos 30 dias'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'Todos',
-                    child: Text('Todos'),
-                  ),
-                ],
-                onChanged: (valor) {
-                  if (valor == null) return;
-
-                  setState(() {
-                    filtroSelecionado = valor;
-                  });
-                },
-              ),
-              const SizedBox(height: 12),
-              construirListaMedicamentos(),
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        backgroundColor: fundoTela,
+        appBar: AppBar(
+          elevation: 0,
+          centerTitle: true,
+          backgroundColor: azulPrincipal,
+          title: const Text(
+            'Medicamentos',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          bottom: const TabBar(
+            indicatorColor: Colors.white,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            labelStyle: TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
+            tabs: [
+              Tab(text: 'Cadastrar'),
+              Tab(text: 'Rotina'),
+              Tab(text: 'Hoje'),
             ],
           ),
+        ),
+        body: TabBarView(
+          children: [
+            abaCadastrar(tema),
+            abaRotina(tema),
+            abaHoje(tema),
+          ],
         ),
       ),
     );

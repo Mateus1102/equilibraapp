@@ -55,7 +55,20 @@ class _PaginaAnotacoesState extends State<PaginaAnotacoes> {
 
     setState(() {
       anotacoes = dados;
+      limparAnotacoesAntigas();
     });
+
+    await armazenamento.salvar(anotacoes);
+  }
+
+  void limparAnotacoesAntigas() {
+    final limite = DateTime.now().subtract(
+      const Duration(days: 90),
+    );
+
+    anotacoes.removeWhere(
+      (item) => item.dataHora.isBefore(limite),
+    );
   }
 
   Future<void> salvarAnotacao() async {
@@ -81,6 +94,7 @@ class _PaginaAnotacoesState extends State<PaginaAnotacoes> {
     setState(() {
       anotacoes.insert(0, novaAnotacao);
       controladorTexto.clear();
+      limparAnotacoesAntigas();
     });
 
     await armazenamento.salvar(anotacoes);
@@ -147,6 +161,14 @@ class _PaginaAnotacoesState extends State<PaginaAnotacoes> {
     });
 
     await armazenamento.salvar(anotacoes);
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Anotação atualizada com sucesso.'),
+      ),
+    );
   }
 
   Future<void> excluirAnotacao(int indice) async {
@@ -186,6 +208,14 @@ class _PaginaAnotacoesState extends State<PaginaAnotacoes> {
     });
 
     await armazenamento.salvar(anotacoes);
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Anotação excluída com sucesso.'),
+      ),
+    );
   }
 
   bool podeEditarOuExcluirAnotacao(AnotacaoDiaria anotacao) {
@@ -234,7 +264,8 @@ class _PaginaAnotacoesState extends State<PaginaAnotacoes> {
     final limite = agora.subtract(Duration(days: dias));
 
     return anotacoes.where((item) {
-      return !item.dataHora.isBefore(limite);
+      return !item.dataHora.isBefore(limite) &&
+          !item.dataHora.isAfter(agora);
     }).toList();
   }
 
@@ -312,17 +343,11 @@ class _PaginaAnotacoesState extends State<PaginaAnotacoes> {
                     children: [
                       IconButton(
                         onPressed: () => editarAnotacao(indiceOriginal),
-                        icon: Icon(
-                          Icons.edit_outlined,
-                          color: azulPrincipal,
-                        ),
+                        icon: Icon(Icons.edit_outlined, color: azulPrincipal),
                       ),
                       IconButton(
                         onPressed: () => excluirAnotacao(indiceOriginal),
-                        icon: const Icon(
-                          Icons.delete_outline,
-                          color: Colors.red,
-                        ),
+                        icon: const Icon(Icons.delete_outline, color: Colors.red),
                       ),
                     ],
                   ),
@@ -379,8 +404,7 @@ class _PaginaAnotacoesState extends State<PaginaAnotacoes> {
                       maxLines: 5,
                       decoration: InputDecoration(
                         labelText: 'Anotação',
-                        hintText:
-                            'Ex.: Hoje senti tontura após o almoço.',
+                        hintText: 'Ex.: Hoje senti tontura após o almoço.',
                         prefixIcon: const Padding(
                           padding: EdgeInsets.only(bottom: 90),
                           child: Icon(Icons.edit_note_outlined),
@@ -400,6 +424,7 @@ class _PaginaAnotacoesState extends State<PaginaAnotacoes> {
                         onPressed: salvarAnotacao,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: azulPrincipal,
+                          foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(18),
@@ -467,30 +492,12 @@ class _PaginaAnotacoesState extends State<PaginaAnotacoes> {
                         ),
                       ),
                       items: const [
-                        DropdownMenuItem(
-                          value: 'Hoje',
-                          child: Text('Hoje'),
-                        ),
-                        DropdownMenuItem(
-                          value: '7 dias',
-                          child: Text('Últimos 7 dias'),
-                        ),
-                        DropdownMenuItem(
-                          value: '15 dias',
-                          child: Text('Últimos 15 dias'),
-                        ),
-                        DropdownMenuItem(
-                          value: '30 dias',
-                          child: Text('Últimos 30 dias'),
-                        ),
-                        DropdownMenuItem(
-                          value: '60 dias',
-                          child: Text('Últimos 60 dias'),
-                        ),
-                        DropdownMenuItem(
-                          value: '90 dias',
-                          child: Text('Últimos 90 dias'),
-                        ),
+                        DropdownMenuItem(value: 'Hoje', child: Text('Hoje')),
+                        DropdownMenuItem(value: '7 dias', child: Text('Últimos 7 dias')),
+                        DropdownMenuItem(value: '15 dias', child: Text('Últimos 15 dias')),
+                        DropdownMenuItem(value: '30 dias', child: Text('Últimos 30 dias')),
+                        DropdownMenuItem(value: '60 dias', child: Text('Últimos 60 dias')),
+                        DropdownMenuItem(value: '90 dias', child: Text('Últimos 90 dias')),
                       ],
                       onChanged: (valor) {
                         if (valor == null) return;

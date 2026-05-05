@@ -409,10 +409,38 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
       );
     }
 
+    double menorValor = lista.first.glicemia.toDouble();
+    double maiorValor = lista.first.glicemia.toDouble();
+
+    for (final item in lista) {
+      final valor = item.glicemia.toDouble();
+
+      if (valor < menorValor) {
+        menorValor = valor;
+      }
+
+      if (valor > maiorValor) {
+        maiorValor = valor;
+      }
+    }
+
+    double minY = (menorValor / 20).floor() * 20;
+    double maxY = (maiorValor / 20).ceil() * 20;
+
+    if (minY < 0) {
+      minY = 0;
+    }
+
+    if (minY == maxY) {
+      maxY += 20;
+    }
+
     return SizedBox(
       height: 220,
       child: LineChart(
         LineChartData(
+          minY: minY,
+          maxY: maxY,
           gridData: const FlGridData(show: true),
           borderData: FlBorderData(show: false),
           titlesData: FlTitlesData(
@@ -728,6 +756,7 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
                 onPressed: salvarRegistro,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: azulPrincipal,
+                  foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius:
                         BorderRadius.circular(18),
@@ -890,6 +919,14 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
           ),
           bottom: const TabBar(
             indicatorColor: Colors.white,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            labelStyle: TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
+            unselectedLabelStyle: TextStyle(
+              fontWeight: FontWeight.w600,
+            ),
             tabs: [
               Tab(text: 'Registrar'),
               Tab(text: 'Histórico'),

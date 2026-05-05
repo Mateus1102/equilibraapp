@@ -1,52 +1,64 @@
 class Medicamento {
+  final String id;
   final String nome;
-  final String dosagem;
+  final String tipo;
+  final String refeicao;
+  final String momento;
   final String observacao;
-  final DateTime dataHora;
   final DateTime dataCriacao;
 
   Medicamento({
+    required this.id,
     required this.nome,
-    required this.dosagem,
+    required this.tipo,
+    required this.refeicao,
+    required this.momento,
     required this.observacao,
-    required this.dataHora,
     required this.dataCriacao,
   });
 
   Map<String, dynamic> paraMapa() {
     return {
+      'id': id,
       'nome': nome,
-      'dosagem': dosagem,
+      'tipo': tipo,
+      'refeicao': refeicao,
+      'momento': momento,
       'observacao': observacao,
-      'dataHora': dataHora.toIso8601String(),
       'dataCriacao': dataCriacao.toIso8601String(),
     };
   }
 
   factory Medicamento.deMapa(Map<String, dynamic> mapa) {
     return Medicamento(
-      nome: mapa['nome'],
-      dosagem: mapa['dosagem'],
-      observacao: mapa['observacao'],
-      dataHora: DateTime.parse(mapa['dataHora']),
+      id: mapa['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      nome: mapa['nome'] ?? '',
+      tipo: mapa['tipo'] ?? 'Comprimido',
+      refeicao: mapa['refeicao'] ?? 'Café da manhã',
+      momento: mapa['momento'] ?? 'Após a refeição',
+      observacao: mapa['observacao'] ?? '',
       dataCriacao: mapa['dataCriacao'] != null
           ? DateTime.parse(mapa['dataCriacao'])
-          : DateTime.fromMillisecondsSinceEpoch(0),
+          : DateTime.now(),
     );
   }
 
   Medicamento copiarCom({
+    String? id,
     String? nome,
-    String? dosagem,
+    String? tipo,
+    String? refeicao,
+    String? momento,
     String? observacao,
-    DateTime? dataHora,
     DateTime? dataCriacao,
   }) {
     return Medicamento(
+      id: id ?? this.id,
       nome: nome ?? this.nome,
-      dosagem: dosagem ?? this.dosagem,
+      tipo: tipo ?? this.tipo,
+      refeicao: refeicao ?? this.refeicao,
+      momento: momento ?? this.momento,
       observacao: observacao ?? this.observacao,
-      dataHora: dataHora ?? this.dataHora,
       dataCriacao: dataCriacao ?? this.dataCriacao,
     );
   }
