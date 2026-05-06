@@ -4,8 +4,9 @@ import '../../../dados/modelos/medicamentos.dart';
 import '../../../dados/modelos/controle_medicamento_diario.dart';
 import '../../../dados/servicos/armazenamento_medicamentos.dart';
 import '../../../dados/servicos/armazenamento_controle_medicamentos.dart';
-import 'pagina_edicao_medicamento.dart';
+import '../../../dados/servicos/armazenamento_horarios_refeicoes.dart';
 import '../../../dados/servicos/servico_notificacoes.dart';
+import 'pagina_edicao_medicamento.dart';
 
 class PaginaMedicamentos extends StatefulWidget {
   const PaginaMedicamentos({super.key});
@@ -22,6 +23,8 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
   final ArmazenamentoMedicamentos armazenamento = ArmazenamentoMedicamentos();
   final ArmazenamentoControleMedicamentos armazenamentoControle =
       ArmazenamentoControleMedicamentos();
+  final ArmazenamentoHorariosRefeicoes armazenamentoHorarios =
+      ArmazenamentoHorariosRefeicoes();
 
   Timer? temporizadorAtualizacaoPrazo;
 
@@ -35,9 +38,9 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
   final Color azulPrincipal = const Color(0xFF1565C0);
   final Color fundoTela = const Color(0xFFF6F9FF);
 
-  TimeOfDay horarioCafe = const TimeOfDay(hour: 7, minute: 00);
-  TimeOfDay horarioAlmoco = const TimeOfDay(hour: 12, minute: 00);
-  TimeOfDay horarioJantar = const TimeOfDay(hour: 19, minute: 00);
+  TimeOfDay horarioCafe = const TimeOfDay(hour: 7, minute: 0);
+  TimeOfDay horarioAlmoco = const TimeOfDay(hour: 12, minute: 0);
+  TimeOfDay horarioJantar = const TimeOfDay(hour: 19, minute: 0);
 
   @override
   void initState() {
@@ -65,17 +68,78 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
   Future<void> carregarDados() async {
     final dadosMedicamentos = await armazenamento.carregar();
     final dadosControles = await armazenamentoControle.carregar();
+    final dadosHorarios = await armazenamentoHorarios.carregar();
 
     if (!mounted) return;
 
     setState(() {
       medicamentos = dadosMedicamentos;
       controles = dadosControles;
+      horarioCafe = converterTextoParaHorario(dadosHorarios['cafe'] ?? '07:00');
+      horarioAlmoco =
+          converterTextoParaHorario(dadosHorarios['almoco'] ?? '12:00');
+      horarioJantar =
+          converterTextoParaHorario(dadosHorarios['jantar'] ?? '19:00');
       limparHistoricoAntigo();
     });
 
     await armazenamentoControle.salvar(controles);
     await reagendarNotificacoesMedicamentos();
+  }
+
+  TimeOfDay converterTextoParaHorario(String texto) {
+    final partes = texto.split(':');
+
+    if (partes.length != 2) {
+      return const TimeOfDay(hour: 7, minute: 0);
+    }
+
+    final hora = int.tryParse(partes[0]) ?? 7;
+    final minuto = int.tryParse(partes[1]) ?? 0;
+
+    return TimeOfDay(hour: hora, minute: minuto);
+  }
+
+  String converterHorarioParaTexto(TimeOfDay horario) {
+    final hora = horario.hour.toString().padLeft(2, '0');
+    final minuto = horario.minute.toString().padLeft(2, '0');
+
+    return '$hora:$minuto';
+  }
+
+  Future<void> salvarHorariosRefeicoes() async {
+    await armazenamentoHorarios.salvar({
+      'cafe': converterHorarioParaTexto(horarioCafe),
+      'almoco': converterHorarioParaTexto(horarioAlmoco),
+      'jantar': converterHorarioParaTexto(horarioJantar),
+    });
+
+    await reagendarNotificacoesMedicamentos();
+  }
+
+  Future<void> selecionarHorarioRefeicao(String refeicao) async {
+    final horarioAtual = obterHorarioRefeicao(refeicao);
+
+    final horarioSelecionado = await showTimePicker(
+      context: context,
+      initialTime: horarioAtual,
+    );
+
+    if (horarioSelecionado == null) return;
+
+    setState(() {
+      if (refeicao == 'Café da manhã') {
+        horarioCafe = horarioSelecionado;
+      } else if (refeicao == 'Almoço') {
+        horarioAlmoco = horarioSelecionado;
+      } else {
+        horarioJantar = horarioSelecionado;
+      }
+    });
+
+    await salvarHorariosRefeicoes();
+
+    mostrarMensagem('Horário atualizado e notificações reagendadas.');
   }
 
   void limparHistoricoAntigo() {
@@ -466,6 +530,88 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
     );
   }
 
+  Widget construirCardHorarioRefeicao(
+    String titulo,
+    TimeOfDay horario,
+    IconData icone,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          Icon(icone, color: azulPrincipal),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              titulo,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Text(
+            converterHorarioParaTexto(horario),
+            style: TextStyle(
+              color: azulPrincipal,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          IconButton(
+            onPressed: () => selecionarHorarioRefeicao(titulo),
+            icon: Icon(
+              Icons.edit_outlined,
+              color: azulPrincipal,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget construirCardHorariosRefeicoes(ThemeData tema) {
+    return cardModerno(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Horários das refeições',
+            style: tema.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: azulPrincipal,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'As notificações usam esses horários como base e aplicam 20 minutos antes ou depois conforme o cadastro.',
+            style: tema.textTheme.bodyMedium?.copyWith(
+              color: Colors.grey.shade700,
+            ),
+          ),
+          construirCardHorarioRefeicao(
+            'Café da manhã',
+            horarioCafe,
+            Icons.free_breakfast_outlined,
+          ),
+          construirCardHorarioRefeicao(
+            'Almoço',
+            horarioAlmoco,
+            Icons.lunch_dining_outlined,
+          ),
+          construirCardHorarioRefeicao(
+            'Jantar',
+            horarioJantar,
+            Icons.dinner_dining_outlined,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget construirGrupoRefeicao(String refeicao, IconData icone) {
     final lista = obterMedicamentosPorRefeicao(refeicao);
 
@@ -669,6 +815,8 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
+          construirCardHorariosRefeicoes(tema),
+          const SizedBox(height: 20),
           cardModerno(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
