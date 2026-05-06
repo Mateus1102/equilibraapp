@@ -4,6 +4,8 @@ import '../../../dados/modelos/medicamentos.dart';
 import '../../../dados/modelos/controle_medicamento_diario.dart';
 import '../../../dados/servicos/armazenamento_medicamentos.dart';
 import '../../../dados/servicos/armazenamento_controle_medicamentos.dart';
+import 'pagina_edicao_medicamento.dart';
+import '../../../dados/servicos/servico_notificacoes.dart';
 
 class PaginaMedicamentos extends StatefulWidget {
   const PaginaMedicamentos({super.key});
@@ -32,6 +34,10 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
 
   final Color azulPrincipal = const Color(0xFF1565C0);
   final Color fundoTela = const Color(0xFFF6F9FF);
+
+  TimeOfDay horarioCafe = const TimeOfDay(hour: 7, minute: 00);
+  TimeOfDay horarioAlmoco = const TimeOfDay(hour: 12, minute: 00);
+  TimeOfDay horarioJantar = const TimeOfDay(hour: 19, minute: 00);
 
   @override
   void initState() {
@@ -65,16 +71,40 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
     setState(() {
       medicamentos = dadosMedicamentos;
       controles = dadosControles;
+      limparHistoricoAntigo();
+    });
+
+    await armazenamentoControle.salvar(controles);
+    await reagendarNotificacoesMedicamentos();
+  }
+
+  void limparHistoricoAntigo() {
+    final limite = DateTime.now().subtract(const Duration(days: 7));
+
+    controles.removeWhere((controle) {
+      final data = DateTime.tryParse(controle.dataControle);
+      if (data == null) return true;
+      return data.isBefore(DateTime(limite.year, limite.month, limite.day));
     });
   }
 
-  String obterDataHoje() {
-    final agora = DateTime.now();
-    final ano = agora.year.toString();
-    final mes = agora.month.toString().padLeft(2, '0');
-    final dia = agora.day.toString().padLeft(2, '0');
+  String formatarDataControle(DateTime data) {
+    final ano = data.year.toString();
+    final mes = data.month.toString().padLeft(2, '0');
+    final dia = data.day.toString().padLeft(2, '0');
 
     return '$ano-$mes-$dia';
+  }
+
+  String obterDataHoje() {
+    return formatarDataControle(DateTime.now());
+  }
+
+  String formatarDataVisual(DateTime data) {
+    final dia = data.day.toString().padLeft(2, '0');
+    final mes = data.month.toString().padLeft(2, '0');
+
+    return '$dia/$mes';
   }
 
   void mostrarMensagem(String texto) {
@@ -85,40 +115,123 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
     );
   }
 
-  bool estaTomado(Medicamento medicamento) {
-    final hoje = obterDataHoje();
+  TimeOfDay obterHorarioRefeicao(String refeicao) {
+    if (refeicao == 'Café da manhã') {
+      return horarioCafe;
+    }
 
+    if (refeicao == 'Almoço') {
+      return horarioAlmoco;
+    }
+
+    return horarioJantar;
+  }
+
+  DateTime calcularHorarioNotificacao(Medicamento medicamento) {
+    final agora = DateTime.now();
+    final horarioBase = obterHorarioRefeicao(medicamento.refeicao);
+
+    DateTime horario = DateTime(
+      agora.year,
+      agora.month,
+      agora.day,
+      horarioBase.hour,
+      horarioBase.minute,
+    );
+
+    if (medicamento.momento == 'Antes da refeição') {
+      horario = horario.subtract(const Duration(minutes: 20));
+    } else {
+      horario = horario.add(const Duration(minutes: 20));
+    }
+
+    if (horario.isBefore(agora)) {
+      horario = horario.add(const Duration(days: 1));
+    }
+
+    return horario;
+  }
+
+  int gerarIdNotificacao(Medicamento medicamento) {
+    final somenteNumeros = medicamento.id.replaceAll(RegExp(r'[^0-9]'), '');
+
+    if (somenteNumeros.isEmpty) {
+      return medicamento.nome.codeUnits.fold(0, (total, item) => total + item);
+    }
+
+    final valor = int.tryParse(somenteNumeros);
+
+    if (valor == null) {
+      return medicamento.nome.codeUnits.fold(0, (total, item) => total + item);
+    }
+
+    return valor.remainder(2147483647);
+  }
+
+  String montarTextoNotificacao(Medicamento medicamento) {
+    return '${medicamento.refeicao} é uma grande refeição do dia. '
+        'Você já tomou? Lembre-se de tomar ${medicamento.nome} '
+        '${medicamento.momento.toLowerCase()}.';
+  }
+
+  Future<void> reagendarNotificacoesMedicamentos() async {
+    await ServicoNotificacoes.cancelarTodas();
+
+    for (final medicamento in medicamentos) {
+      await ServicoNotificacoes.agendarNotificacaoDiaria(
+        id: gerarIdNotificacao(medicamento),
+        titulo: 'Lembrete de medicamento',
+        corpo: montarTextoNotificacao(medicamento),
+        horario: calcularHorarioNotificacao(medicamento),
+      );
+    }
+  }
+
+  bool estaTomadoNaData(Medicamento medicamento, String dataControle) {
     return controles.any((controle) {
       return controle.medicamentoId == medicamento.id &&
-          controle.dataControle == hoje &&
+          controle.dataControle == dataControle &&
           controle.tomado;
     });
+  }
+
+  bool estaTomadoHoje(Medicamento medicamento) {
+    return estaTomadoNaData(medicamento, obterDataHoje());
+  }
+
+  int obterPendenciasHoje() {
+    int total = 0;
+
+    for (final medicamento in medicamentos) {
+      if (!estaTomadoHoje(medicamento)) {
+        total++;
+      }
+    }
+
+    return total;
   }
 
   Future<void> alternarTomado(Medicamento medicamento, bool tomado) async {
     final hoje = obterDataHoje();
 
-    final indice = controles.indexWhere((controle) {
-      return controle.medicamentoId == medicamento.id &&
-          controle.dataControle == hoje;
-    });
-
     setState(() {
-      if (indice >= 0) {
-        controles[indice] = controles[indice].copiarCom(
-          tomado: tomado,
-          dataConfirmacao: tomado ? DateTime.now() : null,
-        );
-      } else {
+      controles.removeWhere((controle) {
+        return controle.medicamentoId == medicamento.id &&
+            controle.dataControle == hoje;
+      });
+
+      if (tomado) {
         controles.add(
           ControleMedicamentoDiario(
             medicamentoId: medicamento.id,
             dataControle: hoje,
-            tomado: tomado,
-            dataConfirmacao: tomado ? DateTime.now() : null,
+            tomado: true,
+            dataConfirmacao: DateTime.now(),
           ),
         );
       }
+
+      limparHistoricoAntigo();
     });
 
     await armazenamentoControle.salvar(controles);
@@ -153,6 +266,7 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
     });
 
     await armazenamento.salvar(medicamentos);
+    await reagendarNotificacoesMedicamentos();
 
     mostrarMensagem('Medicamento salvo com sucesso.');
   }
@@ -160,160 +274,14 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
   Future<void> editarMedicamento(int indice) async {
     final medicamentoAtual = medicamentos[indice];
 
-    String tipoEdicao = medicamentoAtual.tipo;
-    String refeicaoEdicao = medicamentoAtual.refeicao;
-    String momentoEdicao = medicamentoAtual.momento;
-
-    final controladorNomeEdicao = TextEditingController(
-      text: medicamentoAtual.nome,
+    final medicamentoAtualizado =
+        await Navigator.of(context).push<Medicamento>(
+      MaterialPageRoute(
+        builder: (_) => PaginaEdicaoMedicamento(
+          medicamento: medicamentoAtual,
+        ),
+      ),
     );
-
-    final controladorObservacaoEdicao = TextEditingController(
-      text: medicamentoAtual.observacao,
-    );
-
-    final medicamentoAtualizado = await showDialog<Medicamento>(
-      context: context,
-      builder: (_) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return AlertDialog(
-              title: const Text('Editar medicamento'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: controladorNomeEdicao,
-                      decoration: const InputDecoration(
-                        labelText: 'Nome do medicamento',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      value: tipoEdicao,
-                      decoration: const InputDecoration(
-                        labelText: 'Tipo',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'Comprimido',
-                          child: Text('Comprimido'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Insulina',
-                          child: Text('Insulina'),
-                        ),
-                      ],
-                      onChanged: (valor) {
-                        if (valor == null) return;
-
-                        setStateDialog(() {
-                          tipoEdicao = valor;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      value: refeicaoEdicao,
-                      decoration: const InputDecoration(
-                        labelText: 'Refeição',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'Café da manhã',
-                          child: Text('Café da manhã'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Almoço',
-                          child: Text('Almoço'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Jantar',
-                          child: Text('Jantar'),
-                        ),
-                      ],
-                      onChanged: (valor) {
-                        if (valor == null) return;
-
-                        setStateDialog(() {
-                          refeicaoEdicao = valor;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      value: momentoEdicao,
-                      decoration: const InputDecoration(
-                        labelText: 'Momento',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'Antes da refeição',
-                          child: Text('Antes da refeição'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Após a refeição',
-                          child: Text('Após a refeição'),
-                        ),
-                      ],
-                      onChanged: (valor) {
-                        if (valor == null) return;
-
-                        setStateDialog(() {
-                          momentoEdicao = valor;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: controladorObservacaoEdicao,
-                      maxLines: 3,
-                      decoration: const InputDecoration(
-                        labelText: 'Observação',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancelar'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    final nome = controladorNomeEdicao.text.trim();
-
-                    if (nome.isEmpty) return;
-
-                    Navigator.pop(
-                      context,
-                      medicamentoAtual.copiarCom(
-                        nome: nome,
-                        tipo: tipoEdicao,
-                        refeicao: refeicaoEdicao,
-                        momento: momentoEdicao,
-                        observacao: controladorObservacaoEdicao.text.trim(),
-                      ),
-                    );
-                  },
-                  child: const Text('Salvar'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-
-    controladorNomeEdicao.dispose();
-    controladorObservacaoEdicao.dispose();
 
     if (medicamentoAtualizado == null) return;
 
@@ -322,6 +290,7 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
     });
 
     await armazenamento.salvar(medicamentos);
+    await reagendarNotificacoesMedicamentos();
 
     mostrarMensagem('Medicamento atualizado com sucesso.');
   }
@@ -362,6 +331,7 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
 
     await armazenamento.salvar(medicamentos);
     await armazenamentoControle.salvar(controles);
+    await reagendarNotificacoesMedicamentos();
 
     mostrarMensagem('Medicamento excluído com sucesso.');
   }
@@ -425,7 +395,7 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
     int indiceOriginal, {
     bool mostrarCheck = false,
   }) {
-    final tomado = estaTomado(medicamento);
+    final tomado = estaTomadoHoje(medicamento);
 
     return Container(
       margin: const EdgeInsets.only(top: 12),
@@ -760,11 +730,38 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
 
   Widget abaHoje(ThemeData tema) {
     final lista = obterMedicamentosFiltrados();
+    final pendencias = obterPendenciasHoje();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
+          cardModerno(
+            child: Row(
+              children: [
+                Icon(
+                  pendencias == 0
+                      ? Icons.notifications_none_outlined
+                      : Icons.notifications_active_outlined,
+                  color: pendencias == 0 ? Colors.green : Colors.orange,
+                  size: 32,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    pendencias == 0
+                        ? 'Nenhuma pendência hoje.'
+                        : '$pendencias medicamento(s) pendente(s) hoje.',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: pendencias == 0 ? Colors.green : Colors.orange,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
           cardModerno(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -812,12 +809,109 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
     );
   }
 
+  Widget abaSemana(ThemeData tema) {
+    final hoje = DateTime.now();
+    final dias = List.generate(7, (indice) {
+      return DateTime(
+        hoje.year,
+        hoje.month,
+        hoje.day,
+      ).subtract(Duration(days: indice));
+    });
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          cardModerno(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Histórico semanal',
+                  style: tema.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: azulPrincipal,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Acompanhe os medicamentos tomados e pendentes nos últimos 7 dias.',
+                  style: tema.textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          ...dias.map((dia) {
+            final dataControle = formatarDataControle(dia);
+
+            int tomados = 0;
+            int pendentes = 0;
+
+            for (final medicamento in medicamentos) {
+              if (medicamento.dataCriacao.isAfter(
+                DateTime(dia.year, dia.month, dia.day, 23, 59, 59),
+              )) {
+                continue;
+              }
+
+              if (estaTomadoNaData(medicamento, dataControle)) {
+                tomados++;
+              } else {
+                pendentes++;
+              }
+            }
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 14),
+              child: cardModerno(
+                child: Row(
+                  children: [
+                    Icon(
+                      pendentes == 0 && tomados > 0
+                          ? Icons.check_circle_outline
+                          : Icons.notifications_active_outlined,
+                      color: pendentes == 0 && tomados > 0
+                          ? Colors.green
+                          : Colors.orange,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        formatarDataVisual(dia),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '$tomados tomado(s) • $pendentes pendente(s)',
+                      style: TextStyle(
+                        color: pendentes == 0 && tomados > 0
+                            ? Colors.green
+                            : Colors.orange,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tema = Theme.of(context);
 
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         backgroundColor: fundoTela,
         appBar: AppBar(
@@ -836,11 +930,13 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
             unselectedLabelColor: Colors.white70,
             labelStyle: TextStyle(
               fontWeight: FontWeight.bold,
+              fontSize: 12,
             ),
             tabs: [
               Tab(text: 'Cadastrar'),
               Tab(text: 'Rotina'),
               Tab(text: 'Hoje'),
+              Tab(text: 'Semana'),
             ],
           ),
         ),
@@ -849,6 +945,7 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
             abaCadastrar(tema),
             abaRotina(tema),
             abaHoje(tema),
+            abaSemana(tema),
           ],
         ),
       ),
