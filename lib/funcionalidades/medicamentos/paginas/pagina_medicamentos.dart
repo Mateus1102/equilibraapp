@@ -7,6 +7,7 @@ import '../../../dados/servicos/armazenamento_controle_medicamentos.dart';
 import '../../../dados/servicos/armazenamento_horarios_refeicoes.dart';
 import '../../../dados/servicos/servico_notificacoes.dart';
 import 'pagina_edicao_medicamento.dart';
+import 'package:flutter/services.dart';
 
 class PaginaMedicamentos extends StatefulWidget {
   const PaginaMedicamentos({super.key});
@@ -42,6 +43,24 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
   TimeOfDay horarioAlmoco = const TimeOfDay(hour: 12, minute: 0);
   TimeOfDay horarioJantar = const TimeOfDay(hour: 19, minute: 0);
 
+  final TextEditingController controladorHoraCafe =
+      TextEditingController();
+
+  final TextEditingController controladorMinutoCafe =
+      TextEditingController();
+
+  final TextEditingController controladorHoraAlmoco =
+      TextEditingController();
+
+  final TextEditingController controladorMinutoAlmoco =
+      TextEditingController();
+
+  final TextEditingController controladorHoraJantar =
+      TextEditingController();
+
+  final TextEditingController controladorMinutoJantar =
+      TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -62,6 +81,14 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
     controladorNome.dispose();
     controladorObservacao.dispose();
     controladorBusca.dispose();
+
+    controladorHoraCafe.dispose();
+    controladorMinutoCafe.dispose();
+    controladorHoraAlmoco.dispose();
+    controladorMinutoAlmoco.dispose();
+    controladorHoraJantar.dispose();
+    controladorMinutoJantar.dispose();
+
     super.dispose();
   }
 
@@ -80,6 +107,15 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
           converterTextoParaHorario(dadosHorarios['almoco'] ?? '12:00');
       horarioJantar =
           converterTextoParaHorario(dadosHorarios['jantar'] ?? '19:00');
+      controladorHoraCafe.text = horarioCafe.hour.toString().padLeft(2, '0');
+      controladorMinutoCafe.text = horarioCafe.minute.toString().padLeft(2, '0');
+
+      controladorHoraAlmoco.text = horarioAlmoco.hour.toString().padLeft(2, '0');
+      controladorMinutoAlmoco.text = horarioAlmoco.minute.toString().padLeft(2, '0');
+
+      controladorHoraJantar.text = horarioJantar.hour.toString().padLeft(2, '0');
+      controladorMinutoJantar.text = horarioJantar.minute.toString().padLeft(2, '0');
+
       limparHistoricoAntigo();
     });
 
@@ -117,23 +153,42 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
     await reagendarNotificacoesMedicamentos();
   }
 
-  Future<void> selecionarHorarioRefeicao(String refeicao) async {
-    final horarioAtual = obterHorarioRefeicao(refeicao);
+  Future<void> salvarHorarioDigitado({
+    required String refeicao,
+    required TextEditingController controladorHora,
+    required TextEditingController controladorMinuto,
+  }) async {
+    final hora = int.tryParse(controladorHora.text) ?? -1;
+    final minuto = int.tryParse(controladorMinuto.text) ?? -1;
 
-    final horarioSelecionado = await showTimePicker(
-      context: context,
-      initialTime: horarioAtual,
+    if (hora < 0 || hora > 23) {
+      mostrarMensagem('Informe uma hora válida entre 00 e 23.');
+      return;
+    }
+
+    if (minuto < 0 || minuto > 59) {
+      mostrarMensagem('Informe um minuto válido entre 00 e 59.');
+      return;
+    }
+
+    final novoHorario = TimeOfDay(
+      hour: hora,
+      minute: minuto,
     );
-
-    if (horarioSelecionado == null) return;
 
     setState(() {
       if (refeicao == 'Café da manhã') {
-        horarioCafe = horarioSelecionado;
+        horarioCafe = novoHorario;
+        controladorHoraCafe.text = hora.toString().padLeft(2, '0');
+        controladorMinutoCafe.text = minuto.toString().padLeft(2, '0');
       } else if (refeicao == 'Almoço') {
-        horarioAlmoco = horarioSelecionado;
+        horarioAlmoco = novoHorario;
+        controladorHoraAlmoco.text = hora.toString().padLeft(2, '0');
+        controladorMinutoAlmoco.text = minuto.toString().padLeft(2, '0');
       } else {
-        horarioJantar = horarioSelecionado;
+        horarioJantar = novoHorario;
+        controladorHoraJantar.text = hora.toString().padLeft(2, '0');
+        controladorMinutoJantar.text = minuto.toString().padLeft(2, '0');
       }
     });
 
@@ -530,11 +585,12 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
     );
   }
 
-  Widget construirCardHorarioRefeicao(
-    String titulo,
-    TimeOfDay horario,
-    IconData icone,
-  ) {
+  Widget construirCardHorarioRefeicao({
+    required String titulo,
+    required IconData icone,
+    required TextEditingController controladorHora,
+    required TextEditingController controladorMinuto,
+  }) {
     return Container(
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(14),
@@ -542,31 +598,90 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
         color: Colors.blue.shade50,
         borderRadius: BorderRadius.circular(18),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icone, color: azulPrincipal),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              titulo,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
+          Row(
+            children: [
+              Icon(icone, color: azulPrincipal),
+              const SizedBox(width: 10),
+              Text(
+                titulo,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
+            ],
           ),
-          Text(
-            converterHorarioParaTexto(horario),
-            style: TextStyle(
-              color: azulPrincipal,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          IconButton(
-            onPressed: () => selecionarHorarioRefeicao(titulo),
-            icon: Icon(
-              Icons.edit_outlined,
-              color: azulPrincipal,
-            ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: controladorHora,
+                  keyboardType: TextInputType.number,
+                  maxLength: 2,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(2),
+                  ],
+                  decoration: InputDecoration(
+                    labelText: 'Hora',
+                    counterText: '',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: controladorMinuto,
+                  keyboardType: TextInputType.number,
+                  maxLength: 2,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(2),
+                  ],
+                  decoration: InputDecoration(
+                    labelText: 'Minuto',
+                    counterText: '',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              SizedBox(
+                height: 54,
+                child: ElevatedButton(
+                  onPressed: () {
+                    salvarHorarioDigitado(
+                      refeicao: titulo,
+                      controladorHora: controladorHora,
+                      controladorMinuto: controladorMinuto,
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: azulPrincipal,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: const Icon(Icons.check),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -593,19 +708,22 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
             ),
           ),
           construirCardHorarioRefeicao(
-            'Café da manhã',
-            horarioCafe,
-            Icons.free_breakfast_outlined,
+            titulo: 'Café da manhã',
+            icone: Icons.free_breakfast_outlined,
+            controladorHora: controladorHoraCafe,
+            controladorMinuto: controladorMinutoCafe,
           ),
           construirCardHorarioRefeicao(
-            'Almoço',
-            horarioAlmoco,
-            Icons.lunch_dining_outlined,
+            titulo: 'Almoço',
+            icone: Icons.lunch_dining_outlined,
+            controladorHora: controladorHoraAlmoco,
+            controladorMinuto: controladorMinutoAlmoco,
           ),
           construirCardHorarioRefeicao(
-            'Jantar',
-            horarioJantar,
-            Icons.dinner_dining_outlined,
+            titulo: 'Jantar',
+            icone: Icons.dinner_dining_outlined,
+            controladorHora: controladorHoraJantar,
+            controladorMinuto: controladorMinutoJantar,
           ),
         ],
       ),

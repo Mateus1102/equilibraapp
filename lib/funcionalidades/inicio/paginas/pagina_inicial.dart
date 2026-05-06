@@ -17,6 +17,8 @@ class PaginaInicial extends StatefulWidget {
 class _PaginaInicialState extends State<PaginaInicial> {
   int indiceAtual = 0;
 
+  final Color azulPrincipal = const Color(0xFF1565C0);
+
   final List<Widget> paginas = const [
     PaginaResumo(),
     PaginaGlicemia(),
@@ -39,36 +41,64 @@ class _PaginaInicialState extends State<PaginaInicial> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: paginas[indiceAtual],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: indiceAtual,
-        onDestinationSelected: alterarPagina,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Início',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.monitor_heart_outlined),
-            selectedIcon: Icon(Icons.monitor_heart),
-            label: 'Glicemia',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.medication_outlined),
-            selectedIcon: Icon(Icons.medication),
-            label: 'Medicamentos',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.note_alt_outlined),
-            selectedIcon: Icon(Icons.note_alt),
-            label: 'Anotações',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Perfil',
-          ),
-        ],
+      bottomNavigationBar: NavigationBarTheme(
+        data: NavigationBarThemeData(
+          backgroundColor: Colors.white,
+          indicatorColor: azulPrincipal.withOpacity(0.12),
+          labelTextStyle: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return TextStyle(
+                color: azulPrincipal,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              );
+            }
+
+            return const TextStyle(
+              color: Colors.black54,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            );
+          }),
+          iconTheme: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return IconThemeData(color: azulPrincipal);
+            }
+
+            return const IconThemeData(color: Colors.black54);
+          }),
+        ),
+        child: NavigationBar(
+          selectedIndex: indiceAtual,
+          onDestinationSelected: alterarPagina,
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home),
+              label: 'Início',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.monitor_heart_outlined),
+              selectedIcon: Icon(Icons.monitor_heart),
+              label: 'Glicemia',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.medication_outlined),
+              selectedIcon: Icon(Icons.medication),
+              label: 'Medicamentos',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.note_alt_outlined),
+              selectedIcon: Icon(Icons.note_alt),
+              label: 'Anotações',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person_outline),
+              selectedIcon: Icon(Icons.person),
+              label: 'Perfil',
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -76,62 +106,6 @@ class _PaginaInicialState extends State<PaginaInicial> {
 
 class PaginaResumoStateContainer {
   static VoidCallback? recarregar;
-}
-
-Widget construirCardIndicador({
-  required String titulo,
-  required String valor,
-  required String destaque,
-  required Color corDestaque,
-}) {
-  return Card(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            titulo,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  valor,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: corDestaque.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  destaque,
-                  style: TextStyle(
-                    color: corDestaque,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    ),
-  );
 }
 
 class PaginaResumo extends StatefulWidget {
@@ -142,7 +116,10 @@ class PaginaResumo extends StatefulWidget {
 }
 
 class _PaginaResumoState extends State<PaginaResumo> {
-  final armazenamento = ArmazenamentoGlicemia();
+  final ArmazenamentoGlicemia armazenamento = ArmazenamentoGlicemia();
+
+  final Color azulPrincipal = const Color(0xFF1565C0);
+  final Color fundoTela = const Color(0xFFF6F9FF);
 
   bool carregando = true;
   List<RegistroGlicemico> registros = [];
@@ -181,19 +158,200 @@ class _PaginaResumoState extends State<PaginaResumo> {
     return '$dia/$mes/$ano às $hora:$minuto';
   }
 
+  Widget cardModerno({required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  Widget construirTopoResumo() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      margin: const EdgeInsets.only(bottom: 20),
+      decoration: BoxDecoration(
+        color: azulPrincipal,
+        borderRadius: BorderRadius.circular(26),
+        boxShadow: [
+          BoxShadow(
+            color: azulPrincipal.withOpacity(0.20),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.health_and_safety_outlined,
+            color: Colors.white,
+            size: 34,
+          ),
+          SizedBox(height: 14),
+          Text(
+            'Bem-vindo ao Equilibra',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          SizedBox(height: 6),
+          Text(
+            'Acompanhe seus registros e mantenha sua rotina de saúde organizada.',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget construirSelo({
+    required String texto,
+    required Color cor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: 7,
+      ),
+      decoration: BoxDecoration(
+        color: cor.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        texto,
+        style: TextStyle(
+          color: cor,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+
+  Widget construirCardIndicador({
+    required IconData icone,
+    required String titulo,
+    required String valor,
+    required String destaque,
+    required Color corDestaque,
+  }) {
+    return cardModerno(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 44,
+            width: 44,
+            decoration: BoxDecoration(
+              color: azulPrincipal.withOpacity(0.10),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(
+              icone,
+              color: azulPrincipal,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  titulo,
+                  style: const TextStyle(
+                    color: Colors.black54,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  valor,
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.bold,
+                    height: 1.25,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          construirSelo(
+            texto: destaque,
+            cor: corDestaque,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget construirEstadoVazio() {
+    return cardModerno(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.monitor_heart_outlined,
+            color: azulPrincipal,
+            size: 34,
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'Nenhum registro glicêmico encontrado',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Vá até a aba Glicemia para adicionar seu primeiro registro e liberar seu resumo de acompanhamento.',
+            style: TextStyle(
+              color: Colors.black54,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget construirConteudo() {
     if (carregando) {
       return const Center(
-        child: CircularProgressIndicator(),
+        child: Padding(
+          padding: EdgeInsets.all(30),
+          child: CircularProgressIndicator(),
+        ),
       );
     }
 
     final resumo = ResumoGlicemico.aPartirDeLista(registros);
 
     if (resumo.totalRegistros == 0) {
-      return const Text(
-        'Nenhum registro glicêmico encontrado. Vá até a aba Glicemia para adicionar seu primeiro registro.',
-      );
+      return construirEstadoVazio();
     }
 
     final statusAtual = resumo.obterClassificacaoUltimoRegistro();
@@ -203,15 +361,51 @@ class _PaginaResumoState extends State<PaginaResumo> {
     final corMedia = resumo.obterCorStatus(statusMedia);
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Card(
-          child: ListTile(
-            title: const Text('Total de registros'),
-            subtitle: Text('${resumo.totalRegistros}'),
+        cardModerno(
+          child: Row(
+            children: [
+              Container(
+                height: 46,
+                width: 46,
+                decoration: BoxDecoration(
+                  color: azulPrincipal.withOpacity(0.10),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  Icons.fact_check_outlined,
+                  color: azulPrincipal,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Total de registros',
+                      style: TextStyle(
+                        color: Colors.black54,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${resumo.totalRegistros}',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
         construirCardIndicador(
+          icone: Icons.monitor_heart_outlined,
           titulo: 'Último registro',
           valor:
               '${resumo.ultimoRegistro!.glicemia} mg/dL\n${formatarDataHora(resumo.ultimoRegistro!.dataHora)}',
@@ -219,6 +413,7 @@ class _PaginaResumoState extends State<PaginaResumo> {
           corDestaque: corAtual,
         ),
         construirCardIndicador(
+          icone: Icons.analytics_outlined,
           titulo: 'Média glicêmica (últimos 30 dias)',
           valor: resumo.mediaGlicemia == 0
               ? 'Sem registros no último mês'
@@ -227,19 +422,21 @@ class _PaginaResumoState extends State<PaginaResumo> {
           corDestaque: corMedia,
         ),
         construirCardIndicador(
+          icone: Icons.trending_up_outlined,
           titulo: 'Maior valor',
           valor: resumo.maiorGlicemia != null
               ? '${resumo.maiorGlicemia} mg/dL'
               : 'Sem registros no último mês',
-          destaque: 'Últimos 30 dias',
+          destaque: '30 dias',
           corDestaque: Colors.blueGrey,
         ),
         construirCardIndicador(
+          icone: Icons.trending_down_outlined,
           titulo: 'Menor valor',
           valor: resumo.menorGlicemia != null
               ? '${resumo.menorGlicemia} mg/dL'
               : 'Sem registros no último mês',
-          destaque: 'Últimos 30 dias',
+          destaque: '30 dias',
           corDestaque: Colors.blueGrey,
         ),
       ],
@@ -249,23 +446,32 @@ class _PaginaResumoState extends State<PaginaResumo> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: fundoTela,
       appBar: AppBar(
-        title: const Text('Início'),
+        elevation: 0,
+        backgroundColor: azulPrincipal,
         centerTitle: true,
+        title: const Text(
+          'Início',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: carregarDados,
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
+            construirTopoResumo(),
             const Text(
               'Resumo glicêmico',
               style: TextStyle(
-                fontSize: 22,
+                fontSize: 21,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             construirConteudo(),
           ],
         ),
