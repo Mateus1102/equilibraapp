@@ -10,7 +10,12 @@ import 'pagina_edicao_medicamento.dart';
 import 'package:flutter/services.dart';
 
 class PaginaMedicamentos extends StatefulWidget {
-  const PaginaMedicamentos({super.key});
+  final int abaInicial;
+
+  const PaginaMedicamentos({
+    super.key,
+    this.abaInicial = 0,
+  });
 
   @override
   State<PaginaMedicamentos> createState() => _PaginaMedicamentosState();
@@ -302,6 +307,8 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
         titulo: 'Lembrete de medicamento',
         corpo: montarTextoNotificacao(medicamento),
         horario: calcularHorarioNotificacao(medicamento),
+        payload:
+            '${medicamento.id}|${medicamento.nome}|${medicamento.refeicao}',
       );
     }
   }
@@ -1178,6 +1185,7 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
 
     return DefaultTabController(
       length: 4,
+      initialIndex: widget.abaInicial,
       child: Scaffold(
         backgroundColor: fundoTela,
         appBar: AppBar(

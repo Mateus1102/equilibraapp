@@ -6,6 +6,9 @@ import '../../glicemia/paginas/pagina_glicemia.dart';
 import '../../medicamentos/paginas/pagina_medicamentos.dart';
 import '../../anotacoes/paginas/pagina_anotacoes.dart';
 import '../../perfil/paginas/pagina_perfil.dart';
+import '../../../dados/modelos/controle_medicamento_diario.dart';
+import '../../../dados/servicos/armazenamento_controle_medicamentos.dart';
+import '../../../dados/servicos/servico_notificacoes.dart';
 
 class PaginaInicial extends StatefulWidget {
   const PaginaInicial({super.key});
@@ -19,13 +22,24 @@ class _PaginaInicialState extends State<PaginaInicial> {
 
   final Color azulPrincipal = const Color(0xFF1565C0);
 
-  final List<Widget> paginas = const [
-    PaginaResumo(),
-    PaginaGlicemia(),
-    PaginaMedicamentos(),
-    PaginaAnotacoes(),
-    PaginaPerfil(),
-  ];
+  List<Widget> obterPaginas() {
+    return [
+      const PaginaResumo(),
+      const PaginaGlicemia(),
+      PaginaMedicamentos(
+        key: ValueKey(chaveMedicamentos),
+        abaInicial: abaInicialMedicamentos,
+      ),
+      const PaginaAnotacoes(),
+      const PaginaPerfil(),
+    ];
+  }
+
+  int abaInicialMedicamentos = 0;
+  int chaveMedicamentos = 0;
+
+  final armazenamentoControleMedicamentos =
+      ArmazenamentoControleMedicamentos();
 
   void alterarPagina(int novoIndice) {
     setState(() {
@@ -38,9 +52,22 @@ class _PaginaInicialState extends State<PaginaInicial> {
   }
 
   @override
+  void initState() {
+    super.initState();
+
+    ServicoNotificacoes.aoTocarNotificacao = tratarToqueNotificacao;
+  }
+
+  @override
+  void dispose() {
+    ServicoNotificacoes.aoTocarNotificacao = null;
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: paginas[indiceAtual],
+      body: obterPaginas()[indiceAtual],
       bottomNavigationBar: NavigationBarTheme(
         data: NavigationBarThemeData(
           backgroundColor: Colors.white,
@@ -101,6 +128,105 @@ class _PaginaInicialState extends State<PaginaInicial> {
         ),
       ),
     );
+  }
+  String obterDataHoje() {
+    final agora = DateTime.now();
+    final ano = agora.year.toString();
+    final mes = agora.month.toString().padLeft(2, '0');
+    final dia = agora.day.toString().padLeft(2, '0');
+
+    return '$ano-$mes-$dia';
+  }
+
+  Future<void> marcarMedicamentoComoTomadoPeloPayload(String payload) async {
+    final partes = payload.split('|');
+
+    if (partes.length < 3) return;
+
+    final medicamentoId = partes[0];
+    final hoje = obterDataHoje();
+
+    final controles = await armazenamentoControleMedicamentos.carregar();
+
+    controles.removeWhere((controle) {
+      return controle.medicamentoId == medicamentoId &&
+          controle.dataControle == hoje;
+    });
+
+    controles.add(
+      ControleMedicamentoDiario(
+        medicamentoId: medicamentoId,
+        dataControle: hoje,
+        tomado: true,
+        dataConfirmacao: DateTime.now(),
+      ),
+    );
+
+    await armazenamentoControleMedicamentos.salvar(controles);
+  }
+
+  void tratarToqueNotificacao(String? payload) {
+    if (payload == null || payload.isEmpty) return;
+
+    final partes = payload.split('|');
+
+    if (partes.length < 3) return;
+
+    final nomeMedicamento = partes[1];
+    final refeicao = partes[2];
+
+    setState(() {
+      indiceAtual = 2;
+      abaInicialMedicamentos = 2;
+      chaveMedicamentos++;
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      showDialog<bool>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Confirmar medicamento'),
+            content: Text(
+              'Você já comeu o seu $refeicao e tomou seu $nomeMedicamento?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(false);
+                },
+                child: const Text('Ainda não'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop(true);
+                },
+                child: const Text('Sim, tomei'),
+              ),
+            ],
+          );
+        },
+      ).then((confirmou) async {
+        if (confirmou != true) return;
+
+        await marcarMedicamentoComoTomadoPeloPayload(payload);
+
+        if (!mounted) return;
+
+        setState(() {
+          abaInicialMedicamentos = 2;
+          chaveMedicamentos++;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Medicamento marcado como tomado.'),
+          ),
+        );
+      });
+    });
   }
 }
 
@@ -478,4 +604,5 @@ class _PaginaResumoState extends State<PaginaResumo> {
       ),
     );
   }
+  
 }

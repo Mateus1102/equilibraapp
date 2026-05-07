@@ -23,7 +23,12 @@ class ServicoNotificacoes {
       android: android,
     );
 
-    await _notificacoes.initialize(configuracoes);
+    await _notificacoes.initialize(
+      configuracoes,
+      onDidReceiveNotificationResponse: (resposta) {
+        aoTocarNotificacao?.call(resposta.payload);
+      },
+    );
 
     final androidPlugin =
         _notificacoes.resolvePlatformSpecificImplementation<
@@ -37,6 +42,7 @@ class ServicoNotificacoes {
     required String titulo,
     required String corpo,
     required DateTime horario,
+    String? payload,
   }) async {
     final horarioAgendado = tz.TZDateTime.from(horario, tz.local);
 
@@ -57,10 +63,13 @@ class ServicoNotificacoes {
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.time,
+      payload: payload,
     );
   }
 
   static Future<void> cancelarTodas() async {
     await _notificacoes.cancelAll();
   }
+
+  static void Function(String? payload)? aoTocarNotificacao;
 }
