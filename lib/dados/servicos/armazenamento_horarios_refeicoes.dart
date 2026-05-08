@@ -1,16 +1,26 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+
+import 'armazenamento_usuario_atual.dart';
 
 class ArmazenamentoHorariosRefeicoes {
+  final ArmazenamentoUsuarioAtual armazenamentoUsuarioAtual =
+      ArmazenamentoUsuarioAtual();
+
   Future<File> _obterArquivo() async {
-    final diretorio = await getApplicationDocumentsDirectory();
-    return File('${diretorio.path}/horarios_refeicoes.json');
+    return armazenamentoUsuarioAtual.obterArquivoUsuarioAtual(
+      'horarios_refeicoes.json',
+    );
   }
 
-  Future<void> salvar(Map<String, String> horarios) async {
+  Future<void> salvar(
+    Map<String, String> horarios,
+  ) async {
     final arquivo = await _obterArquivo();
-    await arquivo.writeAsString(jsonEncode(horarios));
+
+    await arquivo.writeAsString(
+      jsonEncode(horarios),
+    );
   }
 
   Future<Map<String, String>> carregar() async {
@@ -26,7 +36,17 @@ class ArmazenamentoHorariosRefeicoes {
       }
 
       final jsonString = await arquivo.readAsString();
-      final dados = jsonDecode(jsonString) as Map<String, dynamic>;
+
+      if (jsonString.trim().isEmpty) {
+        return {
+          'cafe': '07:00',
+          'almoco': '12:00',
+          'jantar': '19:00',
+        };
+      }
+
+      final dados =
+          jsonDecode(jsonString) as Map<String, dynamic>;
 
       return {
         'cafe': dados['cafe'] ?? '07:00',

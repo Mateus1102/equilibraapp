@@ -1,21 +1,28 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+
 import '../modelos/medicamentos.dart';
+import 'armazenamento_usuario_atual.dart';
 
 class ArmazenamentoMedicamentos {
+  final ArmazenamentoUsuarioAtual armazenamentoUsuarioAtual =
+      ArmazenamentoUsuarioAtual();
+
   Future<File> _obterArquivo() async {
-    final diretorio = await getApplicationDocumentsDirectory();
-    return File('${diretorio.path}/medicamentos.json');
+    return armazenamentoUsuarioAtual.obterArquivoUsuarioAtual(
+      'medicamentos.json',
+    );
   }
 
   Future<void> salvar(List<Medicamento> medicamentos) async {
     final arquivo = await _obterArquivo();
 
-    final listaMapas =
-        medicamentos.map((medicamento) => medicamento.paraMapa()).toList();
+    final listaMapas = medicamentos
+        .map((medicamento) => medicamento.paraMapa())
+        .toList();
 
     final jsonString = jsonEncode(listaMapas);
+
     await arquivo.writeAsString(jsonString);
   }
 
@@ -28,9 +35,16 @@ class ArmazenamentoMedicamentos {
       }
 
       final jsonString = await arquivo.readAsString();
+
+      if (jsonString.trim().isEmpty) {
+        return [];
+      }
+
       final lista = jsonDecode(jsonString) as List;
 
-      return lista.map((item) => Medicamento.deMapa(item)).toList();
+      return lista
+          .map((item) => Medicamento.deMapa(item))
+          .toList();
     } catch (e) {
       return [];
     }

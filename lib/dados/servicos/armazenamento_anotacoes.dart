@@ -1,18 +1,25 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+
 import '../modelos/anotacao_diaria.dart';
+import 'armazenamento_usuario_atual.dart';
 
 class ArmazenamentoAnotacoes {
+  final ArmazenamentoUsuarioAtual armazenamentoUsuarioAtual =
+      ArmazenamentoUsuarioAtual();
+
   Future<File> _obterArquivo() async {
-    final diretorio = await getApplicationDocumentsDirectory();
-    return File('${diretorio.path}/anotacoes.json');
+    return armazenamentoUsuarioAtual.obterArquivoUsuarioAtual(
+      'anotacoes.json',
+    );
   }
 
   Future<void> salvar(List<AnotacaoDiaria> anotacoes) async {
     final arquivo = await _obterArquivo();
 
-    final listaMapas = anotacoes.map((anotacao) => anotacao.paraMapa()).toList();
+    final listaMapas =
+        anotacoes.map((anotacao) => anotacao.paraMapa()).toList();
+
     final jsonString = jsonEncode(listaMapas);
 
     await arquivo.writeAsString(jsonString);
@@ -27,9 +34,16 @@ class ArmazenamentoAnotacoes {
       }
 
       final jsonString = await arquivo.readAsString();
+
+      if (jsonString.trim().isEmpty) {
+        return [];
+      }
+
       final lista = jsonDecode(jsonString) as List;
 
-      return lista.map((item) => AnotacaoDiaria.deMapa(item)).toList();
+      return lista
+          .map((item) => AnotacaoDiaria.deMapa(item))
+          .toList();
     } catch (e) {
       return [];
     }

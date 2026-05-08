@@ -1,12 +1,17 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+
 import '../modelos/registro_glicemico.dart';
+import 'armazenamento_usuario_atual.dart';
 
 class ArmazenamentoGlicemia {
+  final ArmazenamentoUsuarioAtual armazenamentoUsuarioAtual =
+      ArmazenamentoUsuarioAtual();
+
   Future<File> _obterArquivo() async {
-    final diretorio = await getApplicationDocumentsDirectory();
-    return File('${diretorio.path}/glicemias.json');
+    return armazenamentoUsuarioAtual.obterArquivoUsuarioAtual(
+      'glicemias.json',
+    );
   }
 
   Future<void> salvar(List<RegistroGlicemico> registros) async {
@@ -27,11 +32,14 @@ class ArmazenamentoGlicemia {
       }
 
       final jsonString = await arquivo.readAsString();
+
+      if (jsonString.trim().isEmpty) {
+        return [];
+      }
+
       final lista = jsonDecode(jsonString) as List;
 
-      return lista
-          .map((e) => RegistroGlicemico.deMapa(e))
-          .toList();
+      return lista.map((e) => RegistroGlicemico.deMapa(e)).toList();
     } catch (e) {
       return [];
     }
