@@ -1,21 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../dados/modelos/usuario.dart';
 import '../../../dados/servicos/armazenamento_usuario.dart';
-import '../../inicio/paginas/pagina_inicial.dart';
-import 'pagina_cadastro_usuario.dart';
-import 'pagina_recuperar_pin.dart';
 
-class PaginaLogin extends StatefulWidget {
-  const PaginaLogin({super.key});
+class PaginaRecuperarPin extends StatefulWidget {
+  const PaginaRecuperarPin({super.key});
 
   @override
-  State<PaginaLogin> createState() => _PaginaLoginState();
+  State<PaginaRecuperarPin> createState() => _PaginaRecuperarPinState();
 }
 
-class _PaginaLoginState extends State<PaginaLogin> {
+class _PaginaRecuperarPinState extends State<PaginaRecuperarPin> {
   final TextEditingController controladorCpf = TextEditingController();
-  final TextEditingController controladorPin = TextEditingController();
+  final TextEditingController controladorEmail = TextEditingController();
+  final TextEditingController controladorNovoPin = TextEditingController();
 
   final ArmazenamentoUsuario armazenamentoUsuario = ArmazenamentoUsuario();
 
@@ -25,7 +24,8 @@ class _PaginaLoginState extends State<PaginaLogin> {
   @override
   void dispose() {
     controladorCpf.dispose();
-    controladorPin.dispose();
+    controladorEmail.dispose();
+    controladorNovoPin.dispose();
     super.dispose();
   }
 
@@ -43,40 +43,54 @@ class _PaginaLoginState extends State<PaginaLogin> {
     );
   }
 
-  Future<void> entrar() async {
+  Future<void> redefinirPin() async {
     final cpf = limparCpf(controladorCpf.text);
-    final pin = controladorPin.text.trim();
+    final email = controladorEmail.text.trim().toLowerCase();
+    final novoPin = controladorNovoPin.text.trim();
 
     if (cpf.length != 11) {
       mostrarMensagem('Informe um CPF válido.');
       return;
     }
 
-    if (pin.length != 6) {
-      mostrarMensagem('Informe o PIN com 6 dígitos.');
+    if (email.isEmpty || !email.contains('@')) {
+      mostrarMensagem('Informe o e-mail de recuperação cadastrado.');
       return;
     }
 
-    final usuario = await armazenamentoUsuario.autenticar(
-      cpf: cpf,
-      pin: pin,
+    if (novoPin.length != 6) {
+      mostrarMensagem('O novo PIN deve conter exatamente 6 dígitos.');
+      return;
+    }
+
+    final usuarios = await armazenamentoUsuario.carregarUsuarios();
+
+    Usuario? usuarioEncontrado;
+
+    for (final usuario in usuarios) {
+      if (usuario.cpf == cpf &&
+          usuario.emailRecuperacao.toLowerCase() == email) {
+        usuarioEncontrado = usuario;
+        break;
+      }
+    }
+
+    if (usuarioEncontrado == null) {
+      mostrarMensagem('CPF ou e-mail de recuperação não encontrado.');
+      return;
+    }
+
+    final usuarioAtualizado = usuarioEncontrado.copiarCom(
+      pin: novoPin,
     );
 
-    if (usuario == null) {
-      mostrarMensagem('CPF ou PIN inválido.');
-      return;
-    }
-
-    await armazenamentoUsuario.salvarSessao(usuario.cpf);
+    await armazenamentoUsuario.atualizarUsuario(usuarioAtualizado);
 
     if (!mounted) return;
 
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(
-        builder: (_) => const PaginaInicial(),
-      ),
-      (route) => false,
-    );
+    mostrarMensagem('PIN redefinido com sucesso.');
+
+    Navigator.of(context).pop();
   }
 
   Widget cardModerno({required Widget child}) {
@@ -125,7 +139,7 @@ class _PaginaLoginState extends State<PaginaLogin> {
         backgroundColor: azulPrincipal,
         centerTitle: true,
         title: const Text(
-          'Entrar',
+          'Recuperar PIN',
           style: TextStyle(
             fontWeight: FontWeight.bold,
           ),
@@ -140,13 +154,13 @@ class _PaginaLoginState extends State<PaginaLogin> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Icon(
-                    Icons.health_and_safety_outlined,
+                    Icons.lock_reset_outlined,
                     color: azulPrincipal,
                     size: 52,
                   ),
                   const SizedBox(height: 18),
                   Text(
-                    'Acesse sua conta',
+                    'Esqueceu seu PIN?',
                     textAlign: TextAlign.center,
                     style: tema.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
@@ -155,7 +169,7 @@ class _PaginaLoginState extends State<PaginaLogin> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Entre com seu CPF e PIN de 6 dígitos para continuar seu acompanhamento.',
+                    'Informe seu CPF, e-mail de recuperação e defina um novo PIN de 6 dígitos.',
                     textAlign: TextAlign.center,
                     style: tema.textTheme.bodyMedium?.copyWith(
                       color: Colors.grey.shade700,
@@ -180,7 +194,18 @@ class _PaginaLoginState extends State<PaginaLogin> {
                   const SizedBox(height: 16),
                   campoDecorado(
                     child: TextField(
-                      controller: controladorPin,
+                      controller: controladorEmail,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        labelText: 'E-mail de recuperação',
+                        prefixIcon: Icon(Icons.email_outlined),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  campoDecorado(
+                    child: TextField(
+                      controller: controladorNovoPin,
                       keyboardType: TextInputType.number,
                       obscureText: true,
                       inputFormatters: [
@@ -188,7 +213,7 @@ class _PaginaLoginState extends State<PaginaLogin> {
                         LengthLimitingTextInputFormatter(6),
                       ],
                       decoration: const InputDecoration(
-                        labelText: 'PIN',
+                        labelText: 'Novo PIN',
                         hintText: '6 dígitos',
                         prefixIcon: Icon(Icons.lock_outline),
                       ),
@@ -198,7 +223,7 @@ class _PaginaLoginState extends State<PaginaLogin> {
                   SizedBox(
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: entrar,
+                      onPressed: redefinirPin,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: azulPrincipal,
                         foregroundColor: Colors.white,
@@ -208,44 +233,11 @@ class _PaginaLoginState extends State<PaginaLogin> {
                         ),
                       ),
                       child: const Text(
-                        'Entrar',
+                        'Redefinir PIN',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const PaginaCadastroUsuario(),
-                        ),
-                      );
-                    },
-                    child: Text(
-                      'Criar nova conta',
-                      style: TextStyle(
-                        color: azulPrincipal,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const PaginaRecuperarPin(),
-                        ),
-                      );
-                    },
-                    child: Text(
-                      'Esqueci meu PIN',
-                      style: TextStyle(
-                        color: azulPrincipal,
-                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
