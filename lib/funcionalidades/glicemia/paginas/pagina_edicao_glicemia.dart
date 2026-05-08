@@ -72,6 +72,7 @@ class _PaginaEdicaoGlicemiaState extends State<PaginaEdicaoGlicemia> {
       lastDate: agora,
     );
 
+    if (!mounted) return;
     if (dataSelecionada == null) return;
 
     final hora = int.tryParse(controladorHora.text) ?? 0;
