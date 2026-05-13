@@ -580,6 +580,7 @@ class _PaginaResumoState extends State<PaginaResumo> {
         title: const Text(
           'Início',
           style: TextStyle(
+            color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),

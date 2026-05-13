@@ -1195,6 +1195,7 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
           title: const Text(
             'Medicamentos',
             style: TextStyle(
+              color: Colors.white,
               fontWeight: FontWeight.bold,
             ),
           ),

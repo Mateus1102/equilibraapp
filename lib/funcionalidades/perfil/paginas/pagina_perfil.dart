@@ -154,6 +154,7 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
         title: const Text(
           'Perfil',
           style: TextStyle(
+            color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),

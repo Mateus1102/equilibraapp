@@ -914,6 +914,7 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
           title: const Text(
             'Glicemia',
             style: TextStyle(
+              color: Colors.white,
               fontWeight: FontWeight.bold,
             ),
           ),

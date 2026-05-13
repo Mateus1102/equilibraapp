@@ -372,7 +372,7 @@ class _PaginaAnotacoesState extends State<PaginaAnotacoes> {
         backgroundColor: azulPrincipal,
         title: const Text(
           'Anotações',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
       ),
       body: SafeArea(

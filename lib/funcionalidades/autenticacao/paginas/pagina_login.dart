@@ -127,6 +127,7 @@ class _PaginaLoginState extends State<PaginaLogin> {
         title: const Text(
           'Entrar',
           style: TextStyle(
+            color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
