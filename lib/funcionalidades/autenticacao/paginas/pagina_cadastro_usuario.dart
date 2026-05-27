@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../dados/modelos/usuario.dart';
 import '../../../dados/servicos/armazenamento_usuario.dart';
 import '../../inicio/paginas/pagina_inicial.dart';
+import '../../../dados/api/servico_api_usuario.dart';
 
 class PaginaCadastroUsuario extends StatefulWidget {
   const PaginaCadastroUsuario({super.key});
@@ -19,6 +20,7 @@ class _PaginaCadastroUsuarioState extends State<PaginaCadastroUsuario> {
   final TextEditingController controladorPin = TextEditingController();
 
   final ArmazenamentoUsuario armazenamentoUsuario = ArmazenamentoUsuario();
+  final ServicoApiUsuario servicoApiUsuario = ServicoApiUsuario();
 
   DateTime dataNascimento = DateTime(2000, 1, 1);
 
@@ -134,13 +136,6 @@ class _PaginaCadastroUsuarioState extends State<PaginaCadastroUsuario> {
       return;
     }
 
-    final cpfExistente = await armazenamentoUsuario.cpfJaCadastrado(cpf);
-
-    if (cpfExistente) {
-      mostrarMensagem('Este CPF já está cadastrado.');
-      return;
-    }
-
     final usuario = Usuario(
       nome: nome,
       cpf: cpf,
@@ -152,8 +147,37 @@ class _PaginaCadastroUsuarioState extends State<PaginaCadastroUsuario> {
       dataCriacao: DateTime.now(),
     );
 
-    await armazenamentoUsuario.cadastrarUsuario(usuario);
-    await armazenamentoUsuario.salvarSessao(cpf);
+    final erro = await servicoApiUsuario.cadastrarUsuario(
+      usuario,
+    );
+
+    if (!mounted) return;
+
+    if (erro != null) {
+      mostrarMensagem(erro);
+      return;
+    }
+
+    final usuariosLocais =
+        await armazenamentoUsuario.carregarUsuarios();
+
+    final indiceUsuarioLocal = usuariosLocais.indexWhere(
+      (usuarioLocal) => usuarioLocal.cpf == usuario.cpf,
+    );
+
+    if (indiceUsuarioLocal == -1) {
+      usuariosLocais.add(usuario);
+    } else {
+      usuariosLocais[indiceUsuarioLocal] = usuario;
+    }
+
+    await armazenamentoUsuario.salvarUsuarios(
+      usuariosLocais,
+    );
+
+    await armazenamentoUsuario.salvarSessao(
+      usuario.cpf,
+    );
 
     if (!mounted) return;
 

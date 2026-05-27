@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../dados/modelos/anotacao_diaria.dart';
 import '../../../dados/servicos/armazenamento_anotacoes.dart';
+import '../../../dados/api/servico_api_anotacoes.dart';
 
 class PaginaAnotacoes extends StatefulWidget {
   const PaginaAnotacoes({super.key});
@@ -16,6 +17,8 @@ class _PaginaAnotacoesState extends State<PaginaAnotacoes> {
   final TextEditingController controladorBusca = TextEditingController();
 
   final ArmazenamentoAnotacoes armazenamento = ArmazenamentoAnotacoes();
+  final ServicoApiAnotacoes servicoApiAnotacoes =
+    ServicoApiAnotacoes();
 
   Timer? temporizadorAtualizacaoPrazo;
 
@@ -49,16 +52,29 @@ class _PaginaAnotacoesState extends State<PaginaAnotacoes> {
   }
 
   Future<void> carregarAnotacoes() async {
-    final dados = await armazenamento.carregar();
+    final dadosLocais = await armazenamento.carregar();
 
     if (!mounted) return;
 
     setState(() {
-      anotacoes = dados;
+      anotacoes = dadosLocais;
       limparAnotacoesAntigas();
     });
 
-    await armazenamento.salvar(anotacoes);
+    try {
+      final dadosApi = await servicoApiAnotacoes.carregar();
+
+      if (!mounted) return;
+
+      if (dadosApi.isNotEmpty || anotacoes.isEmpty) {
+        setState(() {
+          anotacoes = dadosApi;
+          limparAnotacoesAntigas();
+        });
+
+        await armazenamento.salvar(anotacoes);
+      }
+    } catch (_) {}
   }
 
   void limparAnotacoesAntigas() {
@@ -99,11 +115,19 @@ class _PaginaAnotacoesState extends State<PaginaAnotacoes> {
 
     await armazenamento.salvar(anotacoes);
 
+    final salvoApi = await servicoApiAnotacoes.salvarAnotacao(
+      novaAnotacao,
+    );
+
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Anotação salva com sucesso.'),
+      SnackBar(
+        content: Text(
+          salvoApi
+              ? 'Anotação salva com sucesso.'
+              : 'Anotação salva localmente.',
+        ),
       ),
     );
   }

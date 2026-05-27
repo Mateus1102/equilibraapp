@@ -5,6 +5,7 @@ import '../../../dados/servicos/armazenamento_usuario.dart';
 import '../../inicio/paginas/pagina_inicial.dart';
 import 'pagina_cadastro_usuario.dart';
 import 'pagina_recuperar_pin.dart';
+import '../../../dados/api/servico_api_usuario.dart';
 
 class PaginaLogin extends StatefulWidget {
   const PaginaLogin({super.key});
@@ -18,6 +19,7 @@ class _PaginaLoginState extends State<PaginaLogin> {
   final TextEditingController controladorPin = TextEditingController();
 
   final ArmazenamentoUsuario armazenamentoUsuario = ArmazenamentoUsuario();
+  final ServicoApiUsuario servicoApiUsuario = ServicoApiUsuario();
 
   final Color azulPrincipal = const Color(0xFF1565C0);
   final Color fundoTela = const Color(0xFFF6F9FF);
@@ -57,17 +59,38 @@ class _PaginaLoginState extends State<PaginaLogin> {
       return;
     }
 
-    final usuario = await armazenamentoUsuario.autenticar(
+    final usuario = await servicoApiUsuario.login(
       cpf: cpf,
       pin: pin,
     );
+
+    if (!mounted) return;
 
     if (usuario == null) {
       mostrarMensagem('CPF ou PIN inválido.');
       return;
     }
 
-    await armazenamentoUsuario.salvarSessao(usuario.cpf);
+    final usuariosLocais =
+        await armazenamentoUsuario.carregarUsuarios();
+
+    final indiceUsuarioLocal = usuariosLocais.indexWhere(
+      (usuarioLocal) => usuarioLocal.cpf == usuario.cpf,
+    );
+
+    if (indiceUsuarioLocal == -1) {
+      usuariosLocais.add(usuario);
+    } else {
+      usuariosLocais[indiceUsuarioLocal] = usuario;
+    }
+
+    await armazenamentoUsuario.salvarUsuarios(
+      usuariosLocais,
+    );
+
+    await armazenamentoUsuario.salvarSessao(
+      usuario.cpf,
+    );
 
     if (!mounted) return;
 

@@ -8,6 +8,9 @@ import '../../../dados/servicos/armazenamento_horarios_refeicoes.dart';
 import '../../../dados/servicos/servico_notificacoes.dart';
 import 'pagina_edicao_medicamento.dart';
 import 'package:flutter/services.dart';
+import '../../../dados/api/servico_api_medicamentos.dart';
+import '../../../dados/api/servico_api_controle_medicamentos.dart';
+import '../../../dados/api/servico_api_horarios_refeicoes.dart';
 
 class PaginaMedicamentos extends StatefulWidget {
   final int abaInicial;
@@ -27,10 +30,16 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
   final TextEditingController controladorBusca = TextEditingController();
 
   final ArmazenamentoMedicamentos armazenamento = ArmazenamentoMedicamentos();
+  final ServicoApiMedicamentos servicoApiMedicamentos =
+    ServicoApiMedicamentos();
   final ArmazenamentoControleMedicamentos armazenamentoControle =
       ArmazenamentoControleMedicamentos();
+  final ServicoApiControleMedicamentos servicoApiControleMedicamentos =
+    ServicoApiControleMedicamentos();
   final ArmazenamentoHorariosRefeicoes armazenamentoHorarios =
       ArmazenamentoHorariosRefeicoes();
+  final ServicoApiHorariosRefeicoes servicoApiHorariosRefeicoes =
+    ServicoApiHorariosRefeicoes();
 
   Timer? temporizadorAtualizacaoPrazo;
 
@@ -98,9 +107,14 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
   }
 
   Future<void> carregarDados() async {
-    final dadosMedicamentos = await armazenamento.carregar();
-    final dadosControles = await armazenamentoControle.carregar();
-    final dadosHorarios = await armazenamentoHorarios.carregar();
+    List<Medicamento> dadosMedicamentos =
+        await armazenamento.carregar();
+
+    List<ControleMedicamentoDiario> dadosControles =
+        await armazenamentoControle.carregar();
+
+    Map<String, String> dadosHorarios =
+        await armazenamentoHorarios.carregar();
 
     if (!mounted) return;
 
@@ -112,19 +126,92 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
           converterTextoParaHorario(dadosHorarios['almoco'] ?? '12:00');
       horarioJantar =
           converterTextoParaHorario(dadosHorarios['jantar'] ?? '19:00');
+
       controladorHoraCafe.text = horarioCafe.hour.toString().padLeft(2, '0');
-      controladorMinutoCafe.text = horarioCafe.minute.toString().padLeft(2, '0');
+      controladorMinutoCafe.text =
+          horarioCafe.minute.toString().padLeft(2, '0');
 
-      controladorHoraAlmoco.text = horarioAlmoco.hour.toString().padLeft(2, '0');
-      controladorMinutoAlmoco.text = horarioAlmoco.minute.toString().padLeft(2, '0');
+      controladorHoraAlmoco.text =
+          horarioAlmoco.hour.toString().padLeft(2, '0');
+      controladorMinutoAlmoco.text =
+          horarioAlmoco.minute.toString().padLeft(2, '0');
 
-      controladorHoraJantar.text = horarioJantar.hour.toString().padLeft(2, '0');
-      controladorMinutoJantar.text = horarioJantar.minute.toString().padLeft(2, '0');
+      controladorHoraJantar.text =
+          horarioJantar.hour.toString().padLeft(2, '0');
+      controladorMinutoJantar.text =
+          horarioJantar.minute.toString().padLeft(2, '0');
 
       limparHistoricoAntigo();
     });
 
-    await armazenamentoControle.salvar(controles);
+    try {
+      final medicamentosApi =
+          await servicoApiMedicamentos.carregar();
+
+      if (!mounted) return;
+
+      if (medicamentosApi.isNotEmpty || medicamentos.isEmpty) {
+        setState(() {
+          medicamentos = medicamentosApi;
+        });
+
+        await armazenamento.salvar(medicamentos);
+      }
+    } catch (_) {}
+
+    try {
+      final controlesApi =
+          await servicoApiControleMedicamentos.carregar();
+
+      if (!mounted) return;
+
+      if (controlesApi.isNotEmpty || controles.isEmpty) {
+        setState(() {
+          controles = controlesApi;
+          limparHistoricoAntigo();
+        });
+
+        await armazenamentoControle.salvar(controles);
+      }
+    } catch (_) {}
+
+    try {
+      final horariosApi =
+          await servicoApiHorariosRefeicoes.carregar();
+
+      if (!mounted) return;
+
+      if (horariosApi != null) {
+        setState(() {
+          dadosHorarios = horariosApi;
+
+          horarioCafe =
+              converterTextoParaHorario(dadosHorarios['cafe'] ?? '07:00');
+          horarioAlmoco =
+              converterTextoParaHorario(dadosHorarios['almoco'] ?? '12:00');
+          horarioJantar =
+              converterTextoParaHorario(dadosHorarios['jantar'] ?? '19:00');
+
+          controladorHoraCafe.text =
+              horarioCafe.hour.toString().padLeft(2, '0');
+          controladorMinutoCafe.text =
+              horarioCafe.minute.toString().padLeft(2, '0');
+
+          controladorHoraAlmoco.text =
+              horarioAlmoco.hour.toString().padLeft(2, '0');
+          controladorMinutoAlmoco.text =
+              horarioAlmoco.minute.toString().padLeft(2, '0');
+
+          controladorHoraJantar.text =
+              horarioJantar.hour.toString().padLeft(2, '0');
+          controladorMinutoJantar.text =
+              horarioJantar.minute.toString().padLeft(2, '0');
+        });
+
+        await armazenamentoHorarios.salvar(dadosHorarios);
+      }
+    } catch (_) {}
+
     await reagendarNotificacoesMedicamentos();
   }
 
@@ -149,13 +236,25 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
   }
 
   Future<void> salvarHorariosRefeicoes() async {
-    await armazenamentoHorarios.salvar({
+    final horarios = {
       'cafe': converterHorarioParaTexto(horarioCafe),
       'almoco': converterHorarioParaTexto(horarioAlmoco),
       'jantar': converterHorarioParaTexto(horarioJantar),
-    });
+    };
+
+    final salvoApi = await servicoApiHorariosRefeicoes.salvar(
+      horarios,
+    );
+
+    await armazenamentoHorarios.salvar(horarios);
 
     await reagendarNotificacoesMedicamentos();
+
+    if (!salvoApi) {
+      mostrarMensagem(
+        'Horário salvo localmente.',
+      );
+    }
   }
 
   Future<void> salvarHorarioDigitado({
@@ -360,8 +459,15 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
       limparHistoricoAntigo();
     });
 
+    await servicoApiControleMedicamentos.marcar(
+      medicamentoId: medicamento.id,
+      dataControle: hoje,
+      tomado: tomado,
+      dataConfirmacao: tomado ? DateTime.now() : null,
+    );
+
     await armazenamentoControle.salvar(controles);
-  }
+      }
 
   Future<void> salvarMedicamento() async {
     final nome = controladorNome.text.trim();
@@ -392,9 +498,32 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
     });
 
     await armazenamento.salvar(medicamentos);
+
+    final idApi = await servicoApiMedicamentos.salvarMedicamento(
+      novoMedicamento,
+    );
+
+    if (idApi != null) {
+      final indice = medicamentos.indexOf(novoMedicamento);
+
+      if (indice != -1) {
+        setState(() {
+          medicamentos[indice] = novoMedicamento.copiarCom(
+            id: idApi,
+          );
+        });
+
+        await armazenamento.salvar(medicamentos);
+      }
+    }
+
     await reagendarNotificacoesMedicamentos();
 
-    mostrarMensagem('Medicamento salvo com sucesso.');
+    mostrarMensagem(
+      idApi != null
+          ? 'Medicamento salvo com sucesso.'
+          : 'Medicamento salvo localmente.',
+    );
   }
 
   Future<void> editarMedicamento(int indice) async {
@@ -415,10 +544,17 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
       medicamentos[indice] = medicamentoAtualizado;
     });
 
+    await servicoApiMedicamentos.atualizarMedicamento(
+      medicamentoAtualizado,
+    );
+
     await armazenamento.salvar(medicamentos);
+
     await reagendarNotificacoesMedicamentos();
 
-    mostrarMensagem('Medicamento atualizado com sucesso.');
+    mostrarMensagem(
+      'Medicamento atualizado com sucesso.',
+    );
   }
 
   Future<void> excluirMedicamento(int indice) async {
@@ -455,11 +591,19 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
       );
     });
 
+    await servicoApiMedicamentos.excluirMedicamento(
+      medicamento.id,
+    );
+
     await armazenamento.salvar(medicamentos);
+
     await armazenamentoControle.salvar(controles);
+
     await reagendarNotificacoesMedicamentos();
 
-    mostrarMensagem('Medicamento excluído com sucesso.');
+    mostrarMensagem(
+      'Medicamento excluído com sucesso.',
+    );
   }
 
   List<Medicamento> obterMedicamentosFiltrados() {

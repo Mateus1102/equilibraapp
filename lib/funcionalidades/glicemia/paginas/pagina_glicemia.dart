@@ -6,6 +6,7 @@ import 'package:fl_chart/fl_chart.dart';
 import '../../../dados/modelos/registro_glicemico.dart';
 import '../../../dados/servicos/armazenamento_glicemia.dart';
 import 'pagina_edicao_glicemia.dart';
+import '../../../dados/api/servico_api_glicemia.dart';
 
 class PaginaGlicemia extends StatefulWidget {
   const PaginaGlicemia({super.key});
@@ -27,6 +28,8 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
   final FocusNode focoMinuto = FocusNode();
 
   final ArmazenamentoGlicemia armazenamento = ArmazenamentoGlicemia();
+  final ServicoApiGlicemia servicoApiGlicemia =
+      ServicoApiGlicemia();
 
   final List<RegistroGlicemico> registros = [];
 
@@ -78,18 +81,35 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
   }
 
   Future<void> carregarRegistros() async {
-    final dados = await armazenamento.carregar();
+    final dadosLocais = await armazenamento.carregar();
 
     if (!mounted) return;
 
     setState(() {
       registros
         ..clear()
-        ..addAll(dados);
+        ..addAll(dadosLocais);
+
       limparRegistrosAntigos();
     });
 
-    await armazenamento.salvar(registros);
+    try {
+      final dadosApi = await servicoApiGlicemia.carregar();
+
+      if (!mounted) return;
+
+      if (dadosApi.isNotEmpty || registros.isEmpty) {
+        setState(() {
+          registros
+            ..clear()
+            ..addAll(dadosApi);
+
+          limparRegistrosAntigos();
+        });
+
+        await armazenamento.salvar(registros);
+      }
+    } catch (_) {}
   }
 
   void limparRegistrosAntigos() {
@@ -210,7 +230,16 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
 
     await armazenamento.salvar(registros);
 
-    mostrarMensagem('Registro salvo com sucesso.');
+    final salvoApi =
+        await servicoApiGlicemia.salvarRegistro(
+      novo,
+    );
+
+    mostrarMensagem(
+      salvoApi
+          ? 'Registro salvo com sucesso.'
+          : 'Registro salvo localmente.',
+    );
   }
 
   Future<void> editarRegistro(int indice) async {
