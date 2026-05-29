@@ -11,6 +11,9 @@ import 'package:flutter/services.dart';
 import '../../../dados/api/servico_api_medicamentos.dart';
 import '../../../dados/api/servico_api_controle_medicamentos.dart';
 import '../../../dados/api/servico_api_horarios_refeicoes.dart';
+import '../../../dados/modelos/item_sincronizacao_pendente.dart';
+import '../../../dados/servicos/armazenamento_sincronizacao.dart';
+import '../../../dados/servicos/servico_sincronizacao.dart';
 
 class PaginaMedicamentos extends StatefulWidget {
   final int abaInicial;
@@ -40,6 +43,8 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
       ArmazenamentoHorariosRefeicoes();
   final ServicoApiHorariosRefeicoes servicoApiHorariosRefeicoes =
     ServicoApiHorariosRefeicoes();
+  final ArmazenamentoSincronizacao armazenamentoSincronizacao =
+    ArmazenamentoSincronizacao();
 
   Timer? temporizadorAtualizacaoPrazo;
 
@@ -78,6 +83,9 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
   @override
   void initState() {
     super.initState();
+
+    ServicoSincronizacao().sincronizar();
+
     carregarDados();
 
     temporizadorAtualizacaoPrazo = Timer.periodic(
@@ -242,19 +250,31 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
       'jantar': converterHorarioParaTexto(horarioJantar),
     };
 
+    await armazenamentoHorarios.salvar(horarios);
+
     final salvoApi = await servicoApiHorariosRefeicoes.salvar(
       horarios,
     );
 
-    await armazenamentoHorarios.salvar(horarios);
-
-    await reagendarNotificacoesMedicamentos();
-
     if (!salvoApi) {
+      final pendentes =
+          await armazenamentoSincronizacao.carregar();
+
+      pendentes.add(
+        ItemSincronizacaoPendente(
+          tipo: 'horarios_refeicoes',
+          dados: horarios,
+        ),
+      );
+
+      await armazenamentoSincronizacao.salvar(pendentes);
+
       mostrarMensagem(
         'Horário salvo localmente.',
       );
     }
+
+    await reagendarNotificacoesMedicamentos();
   }
 
   Future<void> salvarHorarioDigitado({
@@ -436,8 +456,14 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
     return total;
   }
 
-  Future<void> alternarTomado(Medicamento medicamento, bool tomado) async {
+  Future<void> alternarTomado(
+    Medicamento medicamento,
+    bool tomado,
+  ) async {
     final hoje = obterDataHoje();
+
+    final dataConfirmacao =
+        tomado ? DateTime.now() : null;
 
     setState(() {
       controles.removeWhere((controle) {
@@ -451,7 +477,7 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
             medicamentoId: medicamento.id,
             dataControle: hoje,
             tomado: true,
-            dataConfirmacao: DateTime.now(),
+            dataConfirmacao: dataConfirmacao,
           ),
         );
       }
@@ -459,15 +485,40 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
       limparHistoricoAntigo();
     });
 
-    await servicoApiControleMedicamentos.marcar(
+    final sucesso =
+        await servicoApiControleMedicamentos
+            .marcar(
       medicamentoId: medicamento.id,
       dataControle: hoje,
       tomado: tomado,
-      dataConfirmacao: tomado ? DateTime.now() : null,
+      dataConfirmacao: dataConfirmacao,
     );
 
+    if (!sucesso) {
+      final pendentes =
+          await armazenamentoSincronizacao
+              .carregar();
+
+      pendentes.add(
+        ItemSincronizacaoPendente(
+          tipo: 'controle_medicamento',
+          dados: {
+            'medicamentoId': medicamento.id,
+            'dataControle': hoje,
+            'tomado': tomado,
+            'dataConfirmacao':
+                dataConfirmacao
+                    ?.toIso8601String(),
+          },
+        ),
+      );
+
+      await armazenamentoSincronizacao
+          .salvar(pendentes);
+    }
+
     await armazenamentoControle.salvar(controles);
-      }
+  }
 
   Future<void> salvarMedicamento() async {
     final nome = controladorNome.text.trim();
@@ -502,6 +553,29 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
     final idApi = await servicoApiMedicamentos.salvarMedicamento(
       novoMedicamento,
     );
+
+    if (idApi == null) {
+      final pendentes =
+          await armazenamentoSincronizacao.carregar();
+
+      pendentes.add(
+        ItemSincronizacaoPendente(
+          tipo: 'medicamento',
+          dados: {
+            'id': novoMedicamento.id,
+            'nome': novoMedicamento.nome,
+            'tipo': novoMedicamento.tipo,
+            'refeicao': novoMedicamento.refeicao,
+            'momento': novoMedicamento.momento,
+            'observacao': novoMedicamento.observacao,
+            'dataCriacao':
+                novoMedicamento.dataCriacao.toIso8601String(),
+          },
+        ),
+      );
+
+      await armazenamentoSincronizacao.salvar(pendentes);
+    }
 
     if (idApi != null) {
       final indice = medicamentos.indexOf(novoMedicamento);

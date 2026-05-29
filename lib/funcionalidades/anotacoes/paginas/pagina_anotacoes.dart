@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import '../../../dados/modelos/anotacao_diaria.dart';
 import '../../../dados/servicos/armazenamento_anotacoes.dart';
 import '../../../dados/api/servico_api_anotacoes.dart';
+import '../../../dados/modelos/item_sincronizacao_pendente.dart';
+import '../../../dados/servicos/armazenamento_sincronizacao.dart';
+import '../../../dados/servicos/servico_sincronizacao.dart';
 
 class PaginaAnotacoes extends StatefulWidget {
   const PaginaAnotacoes({super.key});
@@ -15,7 +18,8 @@ class PaginaAnotacoes extends StatefulWidget {
 class _PaginaAnotacoesState extends State<PaginaAnotacoes> {
   final TextEditingController controladorTexto = TextEditingController();
   final TextEditingController controladorBusca = TextEditingController();
-
+  final ArmazenamentoSincronizacao armazenamentoSincronizacao =
+      ArmazenamentoSincronizacao();
   final ArmazenamentoAnotacoes armazenamento = ArmazenamentoAnotacoes();
   final ServicoApiAnotacoes servicoApiAnotacoes =
     ServicoApiAnotacoes();
@@ -31,6 +35,8 @@ class _PaginaAnotacoesState extends State<PaginaAnotacoes> {
   @override
   void initState() {
     super.initState();
+
+    ServicoSincronizacao().sincronizar();
 
     carregarAnotacoes();
 
@@ -118,7 +124,23 @@ class _PaginaAnotacoesState extends State<PaginaAnotacoes> {
     final salvoApi = await servicoApiAnotacoes.salvarAnotacao(
       novaAnotacao,
     );
+    
+    if (!salvoApi) {
+      final pendentes = await armazenamentoSincronizacao.carregar();
 
+      pendentes.add(
+        ItemSincronizacaoPendente(
+          tipo: 'anotacao',
+          dados: {
+            'texto': novaAnotacao.texto,
+            'dataHora': novaAnotacao.dataHora.toIso8601String(),
+            'dataCriacao': novaAnotacao.dataCriacao.toIso8601String(),
+          },
+        ),
+      );
+
+      await armazenamentoSincronizacao.salvar(pendentes);
+    }
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(

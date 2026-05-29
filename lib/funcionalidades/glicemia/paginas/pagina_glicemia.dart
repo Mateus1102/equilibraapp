@@ -7,6 +7,9 @@ import '../../../dados/modelos/registro_glicemico.dart';
 import '../../../dados/servicos/armazenamento_glicemia.dart';
 import 'pagina_edicao_glicemia.dart';
 import '../../../dados/api/servico_api_glicemia.dart';
+import '../../../dados/modelos/item_sincronizacao_pendente.dart';
+import '../../../dados/servicos/armazenamento_sincronizacao.dart';
+import '../../../dados/servicos/servico_sincronizacao.dart';
 
 class PaginaGlicemia extends StatefulWidget {
   const PaginaGlicemia({super.key});
@@ -31,6 +34,10 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
   final ServicoApiGlicemia servicoApiGlicemia =
       ServicoApiGlicemia();
 
+  final ArmazenamentoSincronizacao
+    armazenamentoSincronizacao =
+    ArmazenamentoSincronizacao();
+
   final List<RegistroGlicemico> registros = [];
 
   Timer? temporizadorAtualizacaoPrazo;
@@ -46,6 +53,9 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
   @override
   void initState() {
     super.initState();
+
+    ServicoSincronizacao()
+      .sincronizar();
 
     final agora = DateTime.now();
 
@@ -234,6 +244,30 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
         await servicoApiGlicemia.salvarRegistro(
       novo,
     );
+
+    if (!salvoApi) {
+      final pendentes =
+          await armazenamentoSincronizacao
+              .carregar();
+
+      pendentes.add(
+        ItemSincronizacaoPendente(
+          tipo: 'glicemia',
+          dados: {
+            'glicemia': novo.glicemia,
+            'observacao': novo.observacao,
+            'dataHora':
+                novo.dataHora.toIso8601String(),
+            'dataCriacao':
+                novo.dataCriacao
+                    .toIso8601String(),
+          },
+        ),
+      );
+
+      await armazenamentoSincronizacao
+          .salvar(pendentes);
+    }
 
     mostrarMensagem(
       salvoApi
