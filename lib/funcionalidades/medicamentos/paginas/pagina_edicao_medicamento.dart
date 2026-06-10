@@ -130,7 +130,7 @@ class _PaginaEdicaoMedicamentoState extends State<PaginaEdicaoMedicamento> {
                 const SizedBox(height: 16),
                 campoDecorado(
                   child: DropdownButtonFormField<String>(
-                    value: tipoSelecionado,
+                    initialValue: tipoSelecionado,
                     decoration: const InputDecoration(
                       labelText: 'Tipo',
                       prefixIcon: Icon(Icons.category_outlined),
@@ -157,7 +157,7 @@ class _PaginaEdicaoMedicamentoState extends State<PaginaEdicaoMedicamento> {
                 const SizedBox(height: 16),
                 campoDecorado(
                   child: DropdownButtonFormField<String>(
-                    value: refeicaoSelecionada,
+                    initialValue: refeicaoSelecionada,
                     decoration: const InputDecoration(
                       labelText: 'Refeição',
                       prefixIcon: Icon(Icons.restaurant_outlined),
@@ -188,7 +188,7 @@ class _PaginaEdicaoMedicamentoState extends State<PaginaEdicaoMedicamento> {
                 const SizedBox(height: 16),
                 campoDecorado(
                   child: DropdownButtonFormField<String>(
-                    value: momentoSelecionado,
+                    initialValue: momentoSelecionado,
                     decoration: const InputDecoration(
                       labelText: 'Momento',
                       prefixIcon: Icon(Icons.schedule_outlined),

@@ -341,7 +341,7 @@ class _PaginaCadastroUsuarioState extends State<PaginaCadastroUsuario> {
                   const SizedBox(height: 16),
                   campoDecorado(
                     child: DropdownButtonFormField<String>(
-                      value: tipoDiabetes,
+                      initialValue: tipoDiabetes,
                       decoration: const InputDecoration(
                         labelText: 'Tipo de diabetes',
                         prefixIcon: Icon(Icons.bloodtype_outlined),
@@ -382,7 +382,7 @@ class _PaginaCadastroUsuarioState extends State<PaginaCadastroUsuario> {
                     ),
                     child: SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      activeColor: azulPrincipal,
+                      activeThumbColor: azulPrincipal,
                       title: const Text(
                         'Usa insulina?',
                         style: TextStyle(

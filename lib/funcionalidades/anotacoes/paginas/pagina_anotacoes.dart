@@ -527,7 +527,7 @@ class _PaginaAnotacoesState extends State<PaginaAnotacoes> {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      value: filtroSelecionado,
+                      initialValue: filtroSelecionado,
                       decoration: InputDecoration(
                         labelText: 'Período',
                         filled: true,

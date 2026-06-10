@@ -849,7 +849,7 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
             child: Column(
               children: [
                 DropdownButtonFormField<String>(
-                  value: filtroSelecionado,
+                  initialValue: filtroSelecionado,
                   decoration: const InputDecoration(
                     labelText: 'Período',
                   ),
@@ -889,7 +889,7 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: ordenacaoSelecionada,
+                  initialValue: ordenacaoSelecionada,
                   decoration: const InputDecoration(
                     labelText: 'Ordenação',
                   ),
