@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../../dados/modelos/usuario.dart';
 import '../../../dados/servicos/armazenamento_usuario.dart';
+import '../../../dados/api/servico_api_usuario.dart';
 
 class PaginaRecuperarPin extends StatefulWidget {
   const PaginaRecuperarPin({super.key});
@@ -17,6 +18,7 @@ class _PaginaRecuperarPinState extends State<PaginaRecuperarPin> {
   final TextEditingController controladorNovoPin = TextEditingController();
 
   final ArmazenamentoUsuario armazenamentoUsuario = ArmazenamentoUsuario();
+  final ServicoApiUsuario servicoApiUsuario = ServicoApiUsuario();
 
   final Color azulPrincipal = const Color(0xFF1565C0);
   final Color fundoTela = const Color(0xFFF6F9FF);
@@ -44,6 +46,8 @@ class _PaginaRecuperarPinState extends State<PaginaRecuperarPin> {
   }
 
   Future<void> redefinirPin() async {
+    FocusScope.of(context).unfocus();
+
     final cpf = limparCpf(controladorCpf.text);
     final email = controladorEmail.text.trim().toLowerCase();
     final novoPin = controladorNovoPin.text.trim();
@@ -63,32 +67,51 @@ class _PaginaRecuperarPinState extends State<PaginaRecuperarPin> {
       return;
     }
 
+    final erro = await servicoApiUsuario.recuperarPin(
+      cpf: cpf,
+      emailRecuperacao: email,
+      novoPin: novoPin,
+    );
+
+    if (erro != null) {
+      mostrarMensagem(erro);
+      return;
+    }
+
     final usuarios = await armazenamentoUsuario.carregarUsuarios();
 
-    Usuario? usuarioEncontrado;
-
-    for (final usuario in usuarios) {
-      if (usuario.cpf == cpf &&
-          usuario.emailRecuperacao.toLowerCase() == email) {
-        usuarioEncontrado = usuario;
+    for (int i = 0; i < usuarios.length; i++) {
+      if (usuarios[i].cpf == cpf) {
+        usuarios[i] = usuarios[i].copiarCom(
+          pin: novoPin,
+        );
         break;
       }
     }
 
-    if (usuarioEncontrado == null) {
-      mostrarMensagem('CPF ou e-mail de recuperação não encontrado.');
-      return;
-    }
-
-    final usuarioAtualizado = usuarioEncontrado.copiarCom(
-      pin: novoPin,
-    );
-
-    await armazenamentoUsuario.atualizarUsuario(usuarioAtualizado);
+    await armazenamentoUsuario.salvarUsuarios(usuarios);
 
     if (!mounted) return;
 
-    mostrarMensagem('PIN redefinido com sucesso.');
+    await showDialog(
+      context: context,
+      builder: (_) {
+        return AlertDialog(
+          title: const Text('PIN redefinido'),
+          content: const Text(
+            'Seu PIN foi alterado com sucesso. Use o novo PIN para entrar.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted) return;
 
     Navigator.of(context).pop();
   }
