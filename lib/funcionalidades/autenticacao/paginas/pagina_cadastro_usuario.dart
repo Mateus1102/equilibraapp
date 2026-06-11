@@ -5,6 +5,7 @@ import '../../../dados/modelos/usuario.dart';
 import '../../../dados/servicos/armazenamento_usuario.dart';
 import '../../inicio/paginas/pagina_inicial.dart';
 import '../../../dados/api/servico_api_usuario.dart';
+import 'pagina_termos_uso.dart';
 
 class PaginaCadastroUsuario extends StatefulWidget {
   const PaginaCadastroUsuario({super.key});
@@ -25,7 +26,6 @@ class _PaginaCadastroUsuarioState extends State<PaginaCadastroUsuario> {
   DateTime dataNascimento = DateTime(2000, 1, 1);
 
   String tipoDiabetes = 'Tipo 1';
-  bool usaInsulina = false;
 
   final Color azulPrincipal = const Color(0xFF1565C0);
   final Color fundoTela = const Color(0xFFF6F9FF);
@@ -111,6 +111,12 @@ class _PaginaCadastroUsuarioState extends State<PaginaCadastroUsuario> {
   }
 
   Future<void> cadastrarUsuario() async {
+
+    if (!termosAceitos) {
+      mostrarMensagem('Leia e aceite os Termos de Uso para continuar.');
+      return;
+    }
+
     final nome = controladorNome.text.trim();
     final cpf = limparCpf(controladorCpf.text);
     final email = controladorEmail.text.trim();
@@ -143,7 +149,6 @@ class _PaginaCadastroUsuarioState extends State<PaginaCadastroUsuario> {
       pin: pin,
       dataNascimento: dataNascimento,
       tipoDiabetes: tipoDiabetes,
-      usaInsulina: usaInsulina,
       dataCriacao: DateTime.now(),
     );
 
@@ -224,10 +229,25 @@ class _PaginaCadastroUsuarioState extends State<PaginaCadastroUsuario> {
     );
   }
 
+  Future<void> abrirTermosUso() async {
+    final aceitou = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => const PaginaTermosUso(),
+      ),
+    );
+
+    if (aceitou == true) {
+      setState(() {
+        termosAceitos = true;
+      });
+    }
+  }
+
+  bool termosAceitos = false;
+
   @override
   Widget build(BuildContext context) {
     final tema = Theme.of(context);
-
     return Scaffold(
       backgroundColor: fundoTela,
       appBar: AppBar(
@@ -380,31 +400,40 @@ class _PaginaCadastroUsuarioState extends State<PaginaCadastroUsuario> {
                       color: Colors.blue.shade50,
                       borderRadius: BorderRadius.circular(18),
                     ),
-                    child: SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      activeThumbColor: azulPrincipal,
-                      title: const Text(
-                        'Usa insulina?',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
+                    child: Row(
+                      children: [
+                        Icon(
+                          termosAceitos
+                              ? Icons.check_circle
+                              : Icons.info_outline,
+                          color: termosAceitos ? Colors.green : azulPrincipal,
                         ),
-                      ),
-                      subtitle: const Text(
-                        'Essa informação ajuda a personalizar sua rotina.',
-                      ),
-                      value: usaInsulina,
-                      onChanged: (valor) {
-                        setState(() {
-                          usaInsulina = valor;
-                        });
-                      },
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            termosAceitos
+                                ? 'Termos de Uso lidos e aceitos.'
+                                : 'É necessário ler e aceitar os Termos de Uso para criar a conta.',
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: abrirTermosUso,
+                          child: Text(
+                            termosAceitos ? 'Ler novamente' : 'Ler termos',
+                            style: TextStyle(
+                              color: azulPrincipal,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
                   SizedBox(
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: cadastrarUsuario,
+                      onPressed: termosAceitos ? cadastrarUsuario : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: azulPrincipal,
                         foregroundColor: Colors.white,

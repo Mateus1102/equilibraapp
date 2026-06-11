@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../dados/modelos/usuario.dart';
 import '../../../dados/servicos/armazenamento_usuario.dart';
 import '../../../dados/api/servico_api_usuario.dart';
 

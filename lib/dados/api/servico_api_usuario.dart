@@ -35,7 +35,6 @@ class ServicoApiUsuario {
       pin: pin,
       dataNascimento: DateTime.parse(usuario['dataNascimento']),
       tipoDiabetes: usuario['tipoDiabetes'],
-      usaInsulina: usuario['usaInsulina'] == true,
       dataCriacao: usuario['dataCriacao'] != null
           ? DateTime.parse(usuario['dataCriacao'])
           : DateTime.now(),
@@ -55,7 +54,6 @@ class ServicoApiUsuario {
         'pin': usuario.pin,
         'dataNascimento': usuario.dataNascimento.toIso8601String(),
         'tipoDiabetes': usuario.tipoDiabetes,
-        'usaInsulina': usuario.usaInsulina,
       }),
     );
 

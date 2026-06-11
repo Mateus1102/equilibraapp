@@ -259,15 +259,6 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
                             descricao:
                                 usuario!.tipoDiabetes,
                           ),
-                          itemInformacao(
-                            icone:
-                                Icons.medication_outlined,
-                            titulo: 'Uso de insulina',
-                            descricao:
-                                usuario!.usaInsulina
-                                    ? 'Sim'
-                                    : 'Não',
-                          ),
                         ],
                       ),
                     ),

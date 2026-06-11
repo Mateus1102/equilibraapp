@@ -5,7 +5,6 @@ class Usuario {
   final String pin;
   final DateTime dataNascimento;
   final String tipoDiabetes;
-  final bool usaInsulina;
   final DateTime dataCriacao;
 
   Usuario({
@@ -15,7 +14,6 @@ class Usuario {
     required this.pin,
     required this.dataNascimento,
     required this.tipoDiabetes,
-    required this.usaInsulina,
     required this.dataCriacao,
   });
 
@@ -27,7 +25,6 @@ class Usuario {
       'pin': pin,
       'dataNascimento': dataNascimento.toIso8601String(),
       'tipoDiabetes': tipoDiabetes,
-      'usaInsulina': usaInsulina,
       'dataCriacao': dataCriacao.toIso8601String(),
     };
   }
@@ -42,7 +39,6 @@ class Usuario {
           ? DateTime.parse(mapa['dataNascimento'])
           : DateTime.now(),
       tipoDiabetes: mapa['tipoDiabetes'] ?? 'Não informado',
-      usaInsulina: mapa['usaInsulina'] ?? false,
       dataCriacao: mapa['dataCriacao'] != null
           ? DateTime.parse(mapa['dataCriacao'])
           : DateTime.now(),
@@ -56,7 +52,6 @@ class Usuario {
     String? pin,
     DateTime? dataNascimento,
     String? tipoDiabetes,
-    bool? usaInsulina,
     DateTime? dataCriacao,
   }) {
     return Usuario(
@@ -66,7 +61,6 @@ class Usuario {
       pin: pin ?? this.pin,
       dataNascimento: dataNascimento ?? this.dataNascimento,
       tipoDiabetes: tipoDiabetes ?? this.tipoDiabetes,
-      usaInsulina: usaInsulina ?? this.usaInsulina,
       dataCriacao: dataCriacao ?? this.dataCriacao,
     );
   }
