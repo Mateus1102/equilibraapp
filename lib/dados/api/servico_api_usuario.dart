@@ -91,4 +91,33 @@ class ServicoApiUsuario {
 
     return dados['mensagem'] ?? 'Erro ao recuperar PIN.';
   }
+
+  Future<String?> atualizarPerfil({
+    required String cpf,
+    required String nome,
+    required String emailRecuperacao,
+    required String tipoDiabetes,
+  }) async {
+    final resposta = await http.put(
+      Uri.parse(
+        '${ApiConfig.baseUrl}/usuarios/perfil/$cpf',
+      ),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'nome': nome,
+        'emailRecuperacao': emailRecuperacao,
+        'tipoDiabetes': tipoDiabetes,
+      }),
+    );
+
+    final dados = jsonDecode(resposta.body);
+
+    if (resposta.statusCode == 200) {
+      return null;
+    }
+
+    return dados['mensagem'] ?? 'Erro ao atualizar perfil.';
+  }
 }
