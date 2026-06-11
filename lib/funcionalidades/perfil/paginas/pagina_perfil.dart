@@ -183,6 +183,9 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
 
     String tipoSelecionado =
         usuario!.tipoDiabetes;
+    
+    DateTime dataNascimentoSelecionada =
+        usuario!.dataNascimento;
 
     final resultado =
         await showDialog<bool>(
@@ -215,22 +218,52 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
                       height: 12,
                     ),
                     TextField(
-                      controller:
-                          controladorEmail,
-                      keyboardType:
-                          TextInputType
-                              .emailAddress,
-                      decoration:
-                          const InputDecoration(
-                        labelText:
-                            'E-mail',
+                      controller: controladorEmail,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        labelText: 'E-mail',
                       ),
                     ),
+
                     const SizedBox(
                       height: 12,
                     ),
-                    DropdownButtonFormField<
-                        String>(
+
+                    InkWell(
+                      onTap: () async {
+                        FocusScope.of(context).unfocus();
+
+                        final data = await showDatePicker(
+                          context: context,
+                          initialDate: dataNascimentoSelecionada,
+                          firstDate: DateTime(1900),
+                          lastDate: DateTime.now(),
+                        );
+
+                        if (data == null) {
+                          return;
+                        }
+
+                        atualizarDialog(() {
+                          dataNascimentoSelecionada = data;
+                        });
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Data de nascimento',
+                        ),
+                        child: Text(
+                          '${dataNascimentoSelecionada.day.toString().padLeft(2, '0')}/'
+                          '${dataNascimentoSelecionada.month.toString().padLeft(2, '0')}/'
+                          '${dataNascimentoSelecionada.year}',
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(
+                      height: 12,
+                    ),
+                    DropdownButtonFormField<String>(
                       initialValue:
                           tipoSelecionado,
                       decoration:
@@ -296,11 +329,10 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
 
                 Navigator.pop(
                   context,
-                  true,
+                  false,
                 );
               },
-              child:
-                  const Text('Cancelar'),
+              child: const Text('Cancelar'),
             ),
             ElevatedButton(
               onPressed: () {
@@ -325,12 +357,10 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
         await servicoApiUsuario
             .atualizarPerfil(
       cpf: usuario!.cpf,
-      nome:
-          controladorNome.text.trim(),
-      emailRecuperacao:
-          controladorEmail.text.trim(),
-      tipoDiabetes:
-          tipoSelecionado,
+      nome: controladorNome.text.trim(),
+      emailRecuperacao: controladorEmail.text.trim(),
+      tipoDiabetes: tipoSelecionado,
+      dataNascimento: dataNascimentoSelecionada,
     );
 
     if (erro != null) {
@@ -343,12 +373,10 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
 
     final usuarioAtualizado =
         usuario!.copiarCom(
-      nome:
-          controladorNome.text.trim(),
-      emailRecuperacao:
-          controladorEmail.text.trim(),
-      tipoDiabetes:
-          tipoSelecionado,
+      nome: controladorNome.text.trim(),
+      emailRecuperacao: controladorEmail.text.trim(),
+      tipoDiabetes: tipoSelecionado,
+      dataNascimento: dataNascimentoSelecionada,
     );
 
     final usuarios =
