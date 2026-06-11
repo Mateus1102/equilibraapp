@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../dados/modelos/usuario.dart';
 import '../../../dados/servicos/armazenamento_usuario.dart';
 import '../../autenticacao/paginas/pagina_login.dart';
+import '../../../dados/api/servico_api_usuario.dart';
 
 class PaginaPerfil extends StatefulWidget {
   const PaginaPerfil({super.key});
@@ -14,6 +15,9 @@ class PaginaPerfil extends StatefulWidget {
 class _PaginaPerfilState extends State<PaginaPerfil> {
   final ArmazenamentoUsuario armazenamentoUsuario =
       ArmazenamentoUsuario();
+
+  final ServicoApiUsuario servicoApiUsuario =
+    ServicoApiUsuario();
 
   final Color azulPrincipal = const Color(0xFF1565C0);
   final Color fundoTela = const Color(0xFFF6F9FF);
@@ -66,6 +70,29 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
         builder: (_) => const PaginaLogin(),
       ),
       (route) => false,
+    );
+  }
+
+  Future<void> mostrarPopup({
+    required String titulo,
+    required String mensagem,
+  }) async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (_) {
+        return AlertDialog(
+          title: Text(titulo),
+          content: Text(mensagem),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -140,190 +167,436 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
       ),
     );
   }
+  Future<void> editarPerfil() async {
+    if (usuario == null) return;
+    FocusScope.of(context).unfocus();
+
+    final controladorNome =
+        TextEditingController(
+      text: usuario!.nome,
+    );
+
+    final controladorEmail =
+        TextEditingController(
+      text: usuario!.emailRecuperacao,
+    );
+
+    String tipoSelecionado =
+        usuario!.tipoDiabetes;
+
+    final resultado =
+        await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text(
+            'Editar perfil',
+          ),
+          content: StatefulBuilder(
+            builder: (
+              context,
+              atualizarDialog,
+            ) {
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize:
+                      MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller:
+                          controladorNome,
+                      decoration:
+                          const InputDecoration(
+                        labelText:
+                            'Nome',
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 12,
+                    ),
+                    TextField(
+                      controller:
+                          controladorEmail,
+                      keyboardType:
+                          TextInputType
+                              .emailAddress,
+                      decoration:
+                          const InputDecoration(
+                        labelText:
+                            'E-mail',
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 12,
+                    ),
+                    DropdownButtonFormField<
+                        String>(
+                      initialValue:
+                          tipoSelecionado,
+                      decoration:
+                          const InputDecoration(
+                        labelText:
+                            'Tipo de diabetes',
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value:
+                              'Tipo 1',
+                          child: Text(
+                            'Tipo 1',
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value:
+                              'Tipo 2',
+                          child: Text(
+                            'Tipo 2',
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value:
+                              'Gestacional',
+                          child: Text(
+                            'Gestacional',
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value:
+                              'Não informado',
+                          child: Text(
+                            'Não informado',
+                          ),
+                        ),
+                      ],
+                      onChanged: (
+                        valor,
+                      ) {
+                        if (valor ==
+                            null) {
+                          return;
+                        }
+
+                        atualizarDialog(
+                          () {
+                            tipoSelecionado =
+                                valor;
+                          },
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                FocusScope.of(context).unfocus();
+
+                Navigator.pop(
+                  context,
+                  true,
+                );
+              },
+              child:
+                  const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(
+                  context,
+                  true,
+                );
+              },
+              child:
+                  const Text('Salvar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (resultado != true) {
+      return;
+    }
+
+    final erro =
+        await servicoApiUsuario
+            .atualizarPerfil(
+      cpf: usuario!.cpf,
+      nome:
+          controladorNome.text.trim(),
+      emailRecuperacao:
+          controladorEmail.text.trim(),
+      tipoDiabetes:
+          tipoSelecionado,
+    );
+
+    if (erro != null) {
+      await mostrarPopup(
+        titulo: 'Erro ao atualizar',
+        mensagem: erro,
+      );
+      return;
+    }
+
+    final usuarioAtualizado =
+        usuario!.copiarCom(
+      nome:
+          controladorNome.text.trim(),
+      emailRecuperacao:
+          controladorEmail.text.trim(),
+      tipoDiabetes:
+          tipoSelecionado,
+    );
+
+    final usuarios =
+        await armazenamentoUsuario
+            .carregarUsuarios();
+
+    final indice =
+        usuarios.indexWhere(
+      (u) => u.cpf == usuario!.cpf,
+    );
+
+    if (indice != -1) {
+      usuarios[indice] =
+          usuarioAtualizado;
+    }
+
+    await armazenamentoUsuario
+        .salvarUsuarios(
+      usuarios,
+    );
+
+    await armazenamentoUsuario
+        .salvarSessao(
+      usuarioAtualizado.cpf,
+    );
+
+    setState(() {
+      usuario =
+          usuarioAtualizado;
+    });
+
+    await mostrarPopup(
+      titulo: 'Perfil atualizado',
+      mensagem: 'Seus dados foram atualizados com sucesso.',
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final tema = Theme.of(context);
 
-    return Scaffold(
-      backgroundColor: fundoTela,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: azulPrincipal,
-        centerTitle: true,
-        title: const Text(
-          'Perfil',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
+    return GestureDetector(
+      onTap: () {
+        FocusScope.of(context).unfocus();
+      },
+      child: Scaffold(
+          backgroundColor: fundoTela,
+          appBar: AppBar(
+            elevation: 0,
+            backgroundColor: azulPrincipal,
+            centerTitle: true,
+            title: const Text(
+              'Perfil',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
-        ),
-      ),
-      body: carregando
-          ? const Center(
-              child: CircularProgressIndicator(),
-            )
-          : usuario == null
+          body: carregando
               ? const Center(
-                  child: Text(
-                    'Usuário não encontrado.',
-                  ),
+                  child: CircularProgressIndicator(),
                 )
-              : ListView(
-                  padding: const EdgeInsets.all(20),
-                  children: [
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(24),
-                      margin: const EdgeInsets.only(bottom: 20),
-                      decoration: BoxDecoration(
-                        color: azulPrincipal,
-                        borderRadius: BorderRadius.circular(28),
-                        boxShadow: [
-                          BoxShadow(
-                            color: azulPrincipal.withOpacity(0.20),
-                            blurRadius: 18,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
+              : usuario == null
+                  ? const Center(
+                      child: Text(
+                        'Usuário não encontrado.',
                       ),
-                      child: Column(
-                        children: [
-                          Container(
-                            height: 92,
-                            width: 92,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.18),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.person,
-                              size: 52,
-                              color: Colors.white,
-                            ),
+                    )
+                  : ListView(
+                      padding: const EdgeInsets.all(20),
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(24),
+                          margin: const EdgeInsets.only(bottom: 20),
+                          decoration: BoxDecoration(
+                            color: azulPrincipal,
+                            borderRadius: BorderRadius.circular(28),
+                            boxShadow: [
+                              BoxShadow(
+                                color: azulPrincipal.withOpacity(0.20),
+                                blurRadius: 18,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 18),
-                          Text(
-                            usuario!.nome,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            usuario!.emailRecuperacao,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              height: 1.35,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    cardModerno(
-                      child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Dados do usuário',
-                            style: tema.textTheme.titleMedium
-                                ?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: azulPrincipal,
-                            ),
-                          ),
-                          const SizedBox(height: 18),
-                          itemInformacao(
-                            icone: Icons.badge_outlined,
-                            titulo: 'CPF',
-                            descricao:
-                                formatarCpf(usuario!.cpf),
-                          ),
-                          itemInformacao(
-                            icone:
-                                Icons.calendar_month_outlined,
-                            titulo: 'Data de nascimento',
-                            descricao: formatarData(
-                              usuario!.dataNascimento,
-                            ),
-                          ),
-                          itemInformacao(
-                            icone:
-                                Icons.bloodtype_outlined,
-                            titulo: 'Tipo de diabetes',
-                            descricao:
-                                usuario!.tipoDiabetes,
-                          ),
-                        ],
-                      ),
-                    ),
-                    cardModerno(
-                      child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Sobre o aplicativo',
-                            style: tema.textTheme.titleMedium
-                                ?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: azulPrincipal,
-                            ),
-                          ),
-                          const SizedBox(height: 18),
-                          itemInformacao(
-                            icone:
-                                Icons.monitor_heart_outlined,
-                            titulo: 'Controle glicêmico',
-                            descricao:
-                                'Registre medições, acompanhe gráficos e visualize indicadores importantes da sua glicemia.',
-                          ),
-                          itemInformacao(
-                            icone:
-                                Icons.medication_outlined,
-                            titulo: 'Medicamentos',
-                            descricao:
-                                'Organize medicamentos por refeição e receba notificações inteligentes no momento correto.',
-                          ),
-                          itemInformacao(
-                            icone:
-                                Icons.note_alt_outlined,
-                            titulo: 'Anotações diárias',
-                            descricao:
-                                'Registre sintomas, alimentação, rotina e observações importantes do dia a dia.',
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(
-                      height: 56,
-                      child: ElevatedButton.icon(
-                        onPressed: sairDaConta,
-                        icon: const Icon(Icons.logout),
-                        label: const Text(
-                          'Sair da conta',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
+                          child: Column(
+                            children: [
+                              Container(
+                                height: 92,
+                                width: 92,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.18),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.person,
+                                  size: 52,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 18),
+                              Text(
+                                usuario!.nome,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                usuario!.emailRecuperacao,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(18),
+                        cardModerno(
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Dados do usuário',
+                                style: tema.textTheme.titleMedium
+                                    ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: azulPrincipal,
+                                ),
+                              ),
+                              const SizedBox(height: 18),
+                              itemInformacao(
+                                icone: Icons.badge_outlined,
+                                titulo: 'CPF',
+                                descricao:
+                                    formatarCpf(usuario!.cpf),
+                              ),
+                              itemInformacao(
+                                icone:
+                                    Icons.calendar_month_outlined,
+                                titulo: 'Data de nascimento',
+                                descricao: formatarData(
+                                  usuario!.dataNascimento,
+                                ),
+                              ),
+                              itemInformacao(
+                                icone:
+                                    Icons.bloodtype_outlined,
+                                titulo: 'Tipo de diabetes',
+                                descricao:
+                                    usuario!.tipoDiabetes,
+                              ),
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 48,
+                                child: ElevatedButton.icon(
+                                  onPressed: editarPerfil,
+                                  icon: const Icon(Icons.edit_outlined),
+                                  label: const Text(
+                                    'Editar perfil',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: azulPrincipal,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
+                        cardModerno(
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Sobre o aplicativo',
+                                style: tema.textTheme.titleMedium
+                                    ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: azulPrincipal,
+                                ),
+                              ),
+                              const SizedBox(height: 18),
+                              itemInformacao(
+                                icone:
+                                    Icons.monitor_heart_outlined,
+                                titulo: 'Controle glicêmico',
+                                descricao:
+                                    'Registre medições, acompanhe gráficos e visualize indicadores importantes da sua glicemia.',
+                              ),
+                              itemInformacao(
+                                icone:
+                                    Icons.medication_outlined,
+                                titulo: 'Medicamentos',
+                                descricao:
+                                    'Organize medicamentos por refeição e receba notificações inteligentes no momento correto.',
+                              ),
+                              itemInformacao(
+                                icone:
+                                    Icons.note_alt_outlined,
+                                titulo: 'Anotações diárias',
+                                descricao:
+                                    'Registre sintomas, alimentação, rotina e observações importantes do dia a dia.',
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(
+                          height: 56,
+                          child: ElevatedButton.icon(
+                            onPressed: sairDaConta,
+                            icon: const Icon(Icons.logout),
+                            label: const Text(
+                              'Sair da conta',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(18),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-    );
+        ),
+      );
   }
 }
