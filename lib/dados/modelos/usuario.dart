@@ -1,5 +1,6 @@
 class Usuario {
   final String nome;
+  final String nomeUsuario;
   final String cpf;
   final String emailRecuperacao;
   final String pin;
@@ -9,6 +10,7 @@ class Usuario {
 
   Usuario({
     required this.nome,
+    required this.nomeUsuario,
     required this.cpf,
     required this.emailRecuperacao,
     required this.pin,
@@ -20,6 +22,7 @@ class Usuario {
   Map<String, dynamic> paraMapa() {
     return {
       'nome': nome,
+      'nomeUsuario': nomeUsuario,
       'cpf': cpf,
       'emailRecuperacao': emailRecuperacao,
       'pin': pin,
@@ -29,24 +32,36 @@ class Usuario {
     };
   }
 
-  factory Usuario.deMapa(Map<String, dynamic> mapa) {
+  factory Usuario.deMapa(
+    Map<String, dynamic> mapa,
+  ) {
     return Usuario(
       nome: mapa['nome'] ?? '',
+      nomeUsuario: mapa['nomeUsuario'] ?? '',
       cpf: mapa['cpf'] ?? '',
       emailRecuperacao: mapa['emailRecuperacao'] ?? '',
       pin: mapa['pin'] ?? '',
-      dataNascimento: mapa['dataNascimento'] != null
-          ? DateTime.parse(mapa['dataNascimento'])
-          : DateTime.now(),
-      tipoDiabetes: mapa['tipoDiabetes'] ?? 'Não informado',
-      dataCriacao: mapa['dataCriacao'] != null
-          ? DateTime.parse(mapa['dataCriacao'])
-          : DateTime.now(),
+      dataNascimento:
+          mapa['dataNascimento'] != null
+              ? DateTime.parse(
+                  mapa['dataNascimento'],
+                )
+              : DateTime.now(),
+      tipoDiabetes:
+          mapa['tipoDiabetes'] ??
+              'Não informado',
+      dataCriacao:
+          mapa['dataCriacao'] != null
+              ? DateTime.parse(
+                  mapa['dataCriacao'],
+                )
+              : DateTime.now(),
     );
   }
 
   Usuario copiarCom({
     String? nome,
+    String? nomeUsuario,
     String? cpf,
     String? emailRecuperacao,
     String? pin,
@@ -56,12 +71,21 @@ class Usuario {
   }) {
     return Usuario(
       nome: nome ?? this.nome,
+      nomeUsuario: nomeUsuario ?? this.nomeUsuario,
       cpf: cpf ?? this.cpf,
-      emailRecuperacao: emailRecuperacao ?? this.emailRecuperacao,
+      emailRecuperacao:
+          emailRecuperacao ??
+          this.emailRecuperacao,
       pin: pin ?? this.pin,
-      dataNascimento: dataNascimento ?? this.dataNascimento,
-      tipoDiabetes: tipoDiabetes ?? this.tipoDiabetes,
-      dataCriacao: dataCriacao ?? this.dataCriacao,
+      dataNascimento:
+          dataNascimento ??
+          this.dataNascimento,
+      tipoDiabetes:
+          tipoDiabetes ??
+          this.tipoDiabetes,
+      dataCriacao:
+          dataCriacao ??
+          this.dataCriacao,
     );
   }
 }

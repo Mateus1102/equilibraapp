@@ -7,7 +7,7 @@ import 'api_config.dart';
 
 class ServicoApiUsuario {
   Future<Usuario?> login({
-    required String cpf,
+    required String nomeUsuario,
     required String pin,
   }) async {
     final resposta = await http.post(
@@ -16,7 +16,7 @@ class ServicoApiUsuario {
         'Content-Type': 'application/json',
       },
       body: jsonEncode({
-        'cpf': cpf,
+        'nomeUsuario': nomeUsuario,
         'pin': pin,
       }),
     );
@@ -30,6 +30,7 @@ class ServicoApiUsuario {
 
     return Usuario(
       nome: usuario['nome'],
+      nomeUsuario: usuario['nomeUsuario'] ?? '',
       cpf: usuario['cpf'],
       emailRecuperacao: usuario['emailRecuperacao'],
       pin: pin,
@@ -49,6 +50,7 @@ class ServicoApiUsuario {
       },
       body: jsonEncode({
         'nome': usuario.nome,
+        'nomeUsuario': usuario.nomeUsuario,
         'cpf': usuario.cpf,
         'emailRecuperacao': usuario.emailRecuperacao,
         'pin': usuario.pin,

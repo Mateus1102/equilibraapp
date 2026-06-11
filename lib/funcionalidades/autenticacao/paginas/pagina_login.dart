@@ -15,59 +15,84 @@ class PaginaLogin extends StatefulWidget {
 }
 
 class _PaginaLoginState extends State<PaginaLogin> {
-  final TextEditingController controladorCpf = TextEditingController();
-  final TextEditingController controladorPin = TextEditingController();
+  final TextEditingController controladorNomeUsuario =
+      TextEditingController();
+  final TextEditingController controladorPin =
+      TextEditingController();
 
-  final ArmazenamentoUsuario armazenamentoUsuario = ArmazenamentoUsuario();
-  final ServicoApiUsuario servicoApiUsuario = ServicoApiUsuario();
+  final ArmazenamentoUsuario armazenamentoUsuario =
+      ArmazenamentoUsuario();
+  final ServicoApiUsuario servicoApiUsuario =
+      ServicoApiUsuario();
 
   final Color azulPrincipal = const Color(0xFF1565C0);
   final Color fundoTela = const Color(0xFFF6F9FF);
 
   @override
   void dispose() {
-    controladorCpf.dispose();
+    controladorNomeUsuario.dispose();
     controladorPin.dispose();
     super.dispose();
   }
 
-  String limparCpf(String cpf) {
-    return cpf.replaceAll(RegExp(r'[^0-9]'), '');
-  }
-
-  void mostrarMensagem(String mensagem) {
+  Future<void> mostrarPopup({
+    required String titulo,
+    required String mensagem,
+  }) async {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(mensagem),
-      ),
+    await showDialog<void>(
+      context: context,
+      builder: (_) {
+        return AlertDialog(
+          title: Text(titulo),
+          content: Text(mensagem),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
     );
   }
 
   Future<void> entrar() async {
-    final cpf = limparCpf(controladorCpf.text);
+    FocusScope.of(context).unfocus();
+
+    final nomeUsuario =
+        controladorNomeUsuario.text.trim().toLowerCase();
     final pin = controladorPin.text.trim();
 
-    if (cpf.length != 11) {
-      mostrarMensagem('Informe um CPF válido.');
+    if (nomeUsuario.isEmpty) {
+      await mostrarPopup(
+        titulo: 'Usuário obrigatório',
+        mensagem: 'Informe seu nome de usuário.',
+      );
       return;
     }
 
     if (pin.length != 6) {
-      mostrarMensagem('Informe o PIN com 6 dígitos.');
+      await mostrarPopup(
+        titulo: 'PIN inválido',
+        mensagem: 'Informe o PIN com 6 dígitos.',
+      );
       return;
     }
 
     final usuario = await servicoApiUsuario.login(
-      cpf: cpf,
+      nomeUsuario: nomeUsuario,
       pin: pin,
     );
 
     if (!mounted) return;
 
     if (usuario == null) {
-      mostrarMensagem('CPF ou PIN inválido.');
+      await mostrarPopup(
+        titulo: 'Acesso negado',
+        mensagem: 'Usuário ou PIN inválido.',
+      );
       return;
     }
 
@@ -141,142 +166,143 @@ class _PaginaLoginState extends State<PaginaLogin> {
   Widget build(BuildContext context) {
     final tema = Theme.of(context);
 
-    return Scaffold(
-      backgroundColor: fundoTela,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: azulPrincipal,
-        centerTitle: true,
-        title: const Text(
-          'Entrar',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
+    return GestureDetector(
+      onTap: () {
+        FocusScope.of(context).unfocus();
+      },
+      child: Scaffold(
+        backgroundColor: fundoTela,
+        appBar: AppBar(
+          elevation: 0,
+          backgroundColor: azulPrincipal,
+          centerTitle: true,
+          title: const Text(
+            'Entrar',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
-      ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            cardModerno(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Icon(
-                    Icons.health_and_safety_outlined,
-                    color: azulPrincipal,
-                    size: 52,
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    'Acesse sua conta',
-                    textAlign: TextAlign.center,
-                    style: tema.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
+        body: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              cardModerno(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Icon(
+                      Icons.health_and_safety_outlined,
                       color: azulPrincipal,
+                      size: 52,
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Entre com seu CPF e PIN de 6 dígitos para continuar seu acompanhamento.',
-                    textAlign: TextAlign.center,
-                    style: tema.textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey.shade700,
-                    ),
-                  ),
-                  const SizedBox(height: 26),
-                  campoDecorado(
-                    child: TextField(
-                      controller: controladorCpf,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(11),
-                      ],
-                      decoration: const InputDecoration(
-                        labelText: 'CPF',
-                        hintText: 'Somente números',
-                        prefixIcon: Icon(Icons.badge_outlined),
+                    const SizedBox(height: 18),
+                    Text(
+                      'Acesse sua conta',
+                      textAlign: TextAlign.center,
+                      style: tema.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: azulPrincipal,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  campoDecorado(
-                    child: TextField(
-                      controller: controladorPin,
-                      keyboardType: TextInputType.number,
-                      obscureText: true,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(6),
-                      ],
-                      decoration: const InputDecoration(
-                        labelText: 'PIN',
-                        hintText: '6 dígitos',
-                        prefixIcon: Icon(Icons.lock_outline),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Entre com seu nome de usuário e PIN de 6 dígitos para continuar seu acompanhamento.',
+                      textAlign: TextAlign.center,
+                      style: tema.textTheme.bodyMedium?.copyWith(
+                        color: Colors.grey.shade700,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: entrar,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: azulPrincipal,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
+                    const SizedBox(height: 26),
+                    campoDecorado(
+                      child: TextField(
+                        controller: controladorNomeUsuario,
+                        textCapitalization: TextCapitalization.none,
+                        decoration: const InputDecoration(
+                          labelText: 'Nome de usuário',
+                          hintText: 'Ex.: maria123',
+                          prefixIcon: Icon(Icons.account_circle_outlined),
                         ),
                       ),
-                      child: const Text(
-                        'Entrar',
+                    ),
+                    const SizedBox(height: 16),
+                    campoDecorado(
+                      child: TextField(
+                        controller: controladorPin,
+                        keyboardType: TextInputType.number,
+                        obscureText: true,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(6),
+                        ],
+                        decoration: const InputDecoration(
+                          labelText: 'PIN',
+                          hintText: '6 dígitos',
+                          prefixIcon: Icon(Icons.lock_outline),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: entrar,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: azulPrincipal,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                        child: const Text(
+                          'Entrar',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const PaginaCadastroUsuario(),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        'Criar nova conta',
                         style: TextStyle(
-                          fontSize: 16,
+                          color: azulPrincipal,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const PaginaCadastroUsuario(),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const PaginaRecuperarPin(),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        'Esqueci meu PIN',
+                        style: TextStyle(
+                          color: azulPrincipal,
+                          fontWeight: FontWeight.bold,
                         ),
-                      );
-                    },
-                    child: Text(
-                      'Criar nova conta',
-                      style: TextStyle(
-                        color: azulPrincipal,
-                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const PaginaRecuperarPin(),
-                        ),
-                      );
-                    },
-                    child: Text(
-                      'Esqueci meu PIN',
-                      style: TextStyle(
-                        color: azulPrincipal,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

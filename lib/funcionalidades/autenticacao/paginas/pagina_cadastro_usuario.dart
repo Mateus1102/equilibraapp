@@ -19,6 +19,7 @@ class _PaginaCadastroUsuarioState extends State<PaginaCadastroUsuario> {
   final TextEditingController controladorCpf = TextEditingController();
   final TextEditingController controladorEmail = TextEditingController();
   final TextEditingController controladorPin = TextEditingController();
+  final TextEditingController controladorNomeUsuario = TextEditingController();
 
   final ArmazenamentoUsuario armazenamentoUsuario = ArmazenamentoUsuario();
   final ServicoApiUsuario servicoApiUsuario = ServicoApiUsuario();
@@ -36,6 +37,7 @@ class _PaginaCadastroUsuarioState extends State<PaginaCadastroUsuario> {
     controladorCpf.dispose();
     controladorEmail.dispose();
     controladorPin.dispose();
+    controladorNomeUsuario.dispose();
     super.dispose();
   }
 
@@ -118,12 +120,18 @@ class _PaginaCadastroUsuarioState extends State<PaginaCadastroUsuario> {
     }
 
     final nome = controladorNome.text.trim();
+    final nomeUsuario = controladorNomeUsuario.text.trim().toLowerCase();
     final cpf = limparCpf(controladorCpf.text);
     final email = controladorEmail.text.trim();
     final pin = controladorPin.text.trim();
 
     if (nome.isEmpty) {
       mostrarMensagem('Informe seu nome.');
+      return;
+    }
+
+    if (nomeUsuario.isEmpty) {
+      mostrarMensagem('Informe um nome de usuário.');
       return;
     }
 
@@ -144,6 +152,7 @@ class _PaginaCadastroUsuarioState extends State<PaginaCadastroUsuario> {
 
     final usuario = Usuario(
       nome: nome,
+      nomeUsuario: nomeUsuario,
       cpf: cpf,
       emailRecuperacao: email,
       pin: pin,
@@ -291,6 +300,18 @@ class _PaginaCadastroUsuarioState extends State<PaginaCadastroUsuario> {
                       decoration: const InputDecoration(
                         labelText: 'Nome completo',
                         prefixIcon: Icon(Icons.person_outline),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  campoDecorado(
+                    child: TextField(
+                      controller: controladorNomeUsuario,
+                      textCapitalization: TextCapitalization.none,
+                      decoration: const InputDecoration(
+                        labelText: 'Nome de usuário',
+                        hintText: 'Ex.: maria123',
+                        prefixIcon: Icon(Icons.account_circle_outlined),
                       ),
                     ),
                   ),
