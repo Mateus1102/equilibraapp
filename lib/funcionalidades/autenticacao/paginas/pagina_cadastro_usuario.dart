@@ -102,20 +102,31 @@ class _PaginaCadastroUsuarioState extends State<PaginaCadastroUsuario> {
     });
   }
 
-  void mostrarMensagem(String mensagem) {
+  Future<void> mostrarMensagem(String mensagem) async {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(mensagem),
-      ),
+    await showDialog<void>(
+      context: context,
+      builder: (_) {
+        return AlertDialog(
+          title: const Text('Aviso'),
+          content: Text(mensagem),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
     );
   }
 
   Future<void> cadastrarUsuario() async {
+    FocusScope.of(context).unfocus();
 
     if (!termosAceitos) {
-      mostrarMensagem('Leia e aceite os Termos de Uso para continuar.');
+      await mostrarMensagem('Leia e aceite os Termos de Uso para continuar.');
       return;
     }
 
@@ -126,27 +137,27 @@ class _PaginaCadastroUsuarioState extends State<PaginaCadastroUsuario> {
     final pin = controladorPin.text.trim();
 
     if (nome.isEmpty) {
-      mostrarMensagem('Informe seu nome.');
+      await mostrarMensagem('Informe seu nome.');
       return;
     }
 
     if (nomeUsuario.isEmpty) {
-      mostrarMensagem('Informe um nome de usuário.');
+      await mostrarMensagem('Informe um nome de usuário.');
       return;
     }
 
     if (!validarCpf(cpf)) {
-      mostrarMensagem('Informe um CPF válido.');
+      await mostrarMensagem('Informe um CPF válido.');
       return;
     }
 
     if (!validarEmail(email)) {
-      mostrarMensagem('Informe um e-mail válido para recuperação.');
+      await mostrarMensagem('Informe um e-mail válido para recuperação.');
       return;
     }
 
     if (pin.length != 6) {
-      mostrarMensagem('O PIN deve conter exatamente 6 dígitos.');
+      await mostrarMensagem('O PIN deve conter exatamente 6 dígitos.');
       return;
     }
 
@@ -168,7 +179,7 @@ class _PaginaCadastroUsuarioState extends State<PaginaCadastroUsuario> {
     if (!mounted) return;
 
     if (erro != null) {
-      mostrarMensagem(erro);
+      await mostrarMensagem(erro);
       return;
     }
 
@@ -257,227 +268,232 @@ class _PaginaCadastroUsuarioState extends State<PaginaCadastroUsuario> {
   @override
   Widget build(BuildContext context) {
     final tema = Theme.of(context);
-    return Scaffold(
-      backgroundColor: fundoTela,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: azulPrincipal,
-        centerTitle: true,
-        title: const Text(
-          'Criar conta',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
+    return GestureDetector(
+      onTap: () {
+        FocusScope.of(context).unfocus();
+      },
+      child: Scaffold(
+        backgroundColor: fundoTela,
+        appBar: AppBar(
+          elevation: 0,
+          backgroundColor: azulPrincipal,
+          centerTitle: true,
+          title: const Text(
+            'Criar conta',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
-      ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            cardModerno(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Cadastro do usuário',
-                    style: tema.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: azulPrincipal,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Crie seu acesso com CPF e PIN de 6 dígitos para entrar de forma rápida e segura.',
-                    style: tema.textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey.shade700,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  campoDecorado(
-                    child: TextField(
-                      controller: controladorNome,
-                      textCapitalization: TextCapitalization.words,
-                      decoration: const InputDecoration(
-                        labelText: 'Nome completo',
-                        prefixIcon: Icon(Icons.person_outline),
+        body: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              cardModerno(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Cadastro do usuário',
+                      style: tema.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: azulPrincipal,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  campoDecorado(
-                    child: TextField(
-                      controller: controladorNomeUsuario,
-                      textCapitalization: TextCapitalization.none,
-                      decoration: const InputDecoration(
-                        labelText: 'Nome de usuário',
-                        hintText: 'Ex.: maria123',
-                        prefixIcon: Icon(Icons.account_circle_outlined),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Crie seu acesso com CPF e PIN de 6 dígitos para entrar de forma rápida e segura.',
+                      style: tema.textTheme.bodyMedium?.copyWith(
+                        color: Colors.grey.shade700,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  campoDecorado(
-                    child: TextField(
-                      controller: controladorCpf,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(11),
-                      ],
-                      decoration: const InputDecoration(
-                        labelText: 'CPF',
-                        hintText: 'Somente números',
-                        prefixIcon: Icon(Icons.badge_outlined),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  campoDecorado(
-                    child: TextField(
-                      controller: controladorEmail,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        labelText: 'E-mail de recuperação',
-                        prefixIcon: Icon(Icons.email_outlined),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  campoDecorado(
-                    child: TextField(
-                      controller: controladorPin,
-                      keyboardType: TextInputType.number,
-                      obscureText: true,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(6),
-                      ],
-                      decoration: const InputDecoration(
-                        labelText: 'PIN de acesso',
-                        hintText: '6 dígitos',
-                        prefixIcon: Icon(Icons.lock_outline),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  InkWell(
-                    onTap: selecionarDataNascimento,
-                    borderRadius: BorderRadius.circular(18),
-                    child: InputDecorator(
-                      decoration: InputDecoration(
-                        labelText: 'Data de nascimento',
-                        prefixIcon: const Icon(Icons.calendar_month_outlined),
-                        filled: true,
-                        fillColor: Colors.blue.shade50,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(18),
-                          borderSide: BorderSide.none,
+                    const SizedBox(height: 24),
+                    campoDecorado(
+                      child: TextField(
+                        controller: controladorNome,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: const InputDecoration(
+                          labelText: 'Nome completo',
+                          prefixIcon: Icon(Icons.person_outline),
                         ),
                       ),
-                      child: Text(
-                        formatarData(dataNascimento),
+                    ),
+                    const SizedBox(height: 16),
+                    campoDecorado(
+                      child: TextField(
+                        controller: controladorNomeUsuario,
+                        textCapitalization: TextCapitalization.none,
+                        decoration: const InputDecoration(
+                          labelText: 'Nome de usuário',
+                          hintText: 'Ex.: maria123',
+                          prefixIcon: Icon(Icons.account_circle_outlined),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  campoDecorado(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: tipoDiabetes,
-                      decoration: const InputDecoration(
-                        labelText: 'Tipo de diabetes',
-                        prefixIcon: Icon(Icons.bloodtype_outlined),
+                    const SizedBox(height: 16),
+                    campoDecorado(
+                      child: TextField(
+                        controller: controladorCpf,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(11),
+                        ],
+                        decoration: const InputDecoration(
+                          labelText: 'CPF',
+                          hintText: 'Somente números',
+                          prefixIcon: Icon(Icons.badge_outlined),
+                        ),
                       ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'Tipo 1',
-                          child: Text('Tipo 1'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Tipo 2',
-                          child: Text('Tipo 2'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Gestacional',
-                          child: Text('Gestacional'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Não informado',
-                          child: Text('Não informado'),
-                        ),
-                      ],
-                      onChanged: (valor) {
-                        if (valor == null) return;
-
-                        setState(() {
-                          tipoDiabetes = valor;
-                        });
-                      },
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
+                    const SizedBox(height: 16),
+                    campoDecorado(
+                      child: TextField(
+                        controller: controladorEmail,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(
+                          labelText: 'E-mail de recuperação',
+                          prefixIcon: Icon(Icons.email_outlined),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    campoDecorado(
+                      child: TextField(
+                        controller: controladorPin,
+                        keyboardType: TextInputType.number,
+                        obscureText: true,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(6),
+                        ],
+                        decoration: const InputDecoration(
+                          labelText: 'PIN de acesso',
+                          hintText: '6 dígitos',
+                          prefixIcon: Icon(Icons.lock_outline),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    InkWell(
+                      onTap: selecionarDataNascimento,
                       borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          termosAceitos
-                              ? Icons.check_circle
-                              : Icons.info_outline,
-                          color: termosAceitos ? Colors.green : azulPrincipal,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            termosAceitos
-                                ? 'Termos de Uso lidos e aceitos.'
-                                : 'É necessário ler e aceitar os Termos de Uso para criar a conta.',
+                      child: InputDecorator(
+                        decoration: InputDecoration(
+                          labelText: 'Data de nascimento',
+                          prefixIcon: const Icon(Icons.calendar_month_outlined),
+                          filled: true,
+                          fillColor: Colors.blue.shade50,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(18),
+                            borderSide: BorderSide.none,
                           ),
                         ),
-                        TextButton(
-                          onPressed: abrirTermosUso,
-                          child: Text(
-                            termosAceitos ? 'Ler novamente' : 'Ler termos',
-                            style: TextStyle(
-                              color: azulPrincipal,
-                              fontWeight: FontWeight.bold,
+                        child: Text(
+                          formatarData(dataNascimento),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    campoDecorado(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: tipoDiabetes,
+                        decoration: const InputDecoration(
+                          labelText: 'Tipo de diabetes',
+                          prefixIcon: Icon(Icons.bloodtype_outlined),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'Tipo 1',
+                            child: Text('Tipo 1'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Tipo 2',
+                            child: Text('Tipo 2'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Gestacional',
+                            child: Text('Gestacional'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Não informado',
+                            child: Text('Não informado'),
+                          ),
+                        ],
+                        onChanged: (valor) {
+                          if (valor == null) return;
+
+                          setState(() {
+                            tipoDiabetes = valor;
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            termosAceitos
+                                ? Icons.check_circle
+                                : Icons.info_outline,
+                            color: termosAceitos ? Colors.green : azulPrincipal,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              termosAceitos
+                                  ? 'Termos de Uso lidos e aceitos.'
+                                  : 'É necessário ler e aceitar os Termos de Uso para criar a conta.',
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: termosAceitos ? cadastrarUsuario : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: azulPrincipal,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                      ),
-                      child: const Text(
-                        'Criar conta',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
+                          TextButton(
+                            onPressed: abrirTermosUso,
+                            child: Text(
+                              termosAceitos ? 'Ler novamente' : 'Ler termos',
+                              style: TextStyle(
+                                color: azulPrincipal,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: termosAceitos ? cadastrarUsuario : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: azulPrincipal,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                        child: const Text(
+                          'Criar conta',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
+      )
     );
   }
 }

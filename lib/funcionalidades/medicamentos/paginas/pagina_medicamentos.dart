@@ -269,7 +269,7 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
 
       await armazenamentoSincronizacao.salvar(pendentes);
 
-      mostrarMensagem(
+      await mostrarMensagem(
         'Horário salvo localmente.',
       );
     }
@@ -278,20 +278,22 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
   }
 
   Future<void> salvarHorarioDigitado({
+    
     required String refeicao,
     required TextEditingController controladorHora,
     required TextEditingController controladorMinuto,
   }) async {
+    FocusScope.of(context).unfocus();
     final hora = int.tryParse(controladorHora.text) ?? -1;
     final minuto = int.tryParse(controladorMinuto.text) ?? -1;
 
     if (hora < 0 || hora > 23) {
-      mostrarMensagem('Informe uma hora válida entre 00 e 23.');
+      await mostrarMensagem('Informe uma hora válida entre 00 e 23.');
       return;
     }
 
     if (minuto < 0 || minuto > 59) {
-      mostrarMensagem('Informe um minuto válido entre 00 e 59.');
+      await mostrarMensagem('Informe um minuto válido entre 00 e 59.');
       return;
     }
 
@@ -318,7 +320,7 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
 
     await salvarHorariosRefeicoes();
 
-    mostrarMensagem('Horário atualizado e notificações reagendadas.');
+    await mostrarMensagem('Horário atualizado e notificações reagendadas.');
   }
 
   void limparHistoricoAntigo() {
@@ -350,11 +352,23 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
     return '$dia/$mes';
   }
 
-  void mostrarMensagem(String texto) {
+  Future<void> mostrarMensagem(String texto) async {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(texto)),
+    await showDialog<void>(
+      context: context,
+      builder: (_) {
+        return AlertDialog(
+          title: const Text('Aviso'),
+          content: Text(texto),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -383,9 +397,9 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
     );
 
     if (medicamento.momento == 'Antes da refeição') {
-      horario = horario.subtract(const Duration(minutes: 20));
+      horario = horario.subtract(const Duration(minutes: 3)); //timer normal sempre será 20 minutos, essa alteração é com finalidades de apresenção em 12/06
     } else {
-      horario = horario.add(const Duration(minutes: 20));
+      horario = horario.add(const Duration(minutes: 3)); //timer normal sempre será 20 minutos, essa alteração é com finalidades de apresenção em 12/06
     }
 
     if (horario.isBefore(agora)) {
@@ -521,11 +535,13 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
   }
 
   Future<void> salvarMedicamento() async {
+    FocusScope.of(context).unfocus();
+
     final nome = controladorNome.text.trim();
     final observacao = controladorObservacao.text.trim();
 
     if (nome.isEmpty) {
-      mostrarMensagem('Informe o nome do medicamento.');
+      await mostrarMensagem('Informe o nome do medicamento.');
       return;
     }
 
@@ -593,7 +609,7 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
 
     await reagendarNotificacoesMedicamentos();
 
-    mostrarMensagem(
+    await mostrarMensagem(
       idApi != null
           ? 'Medicamento salvo com sucesso.'
           : 'Medicamento salvo localmente.',
@@ -626,7 +642,7 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
 
     await reagendarNotificacoesMedicamentos();
 
-    mostrarMensagem(
+    await mostrarMensagem(
       'Medicamento atualizado com sucesso.',
     );
   }
@@ -675,7 +691,7 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
 
     await reagendarNotificacoesMedicamentos();
 
-    mostrarMensagem(
+    await mostrarMensagem(
       'Medicamento excluído com sucesso.',
     );
   }
@@ -1401,47 +1417,52 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
   Widget build(BuildContext context) {
     final tema = Theme.of(context);
 
-    return DefaultTabController(
-      length: 4,
-      initialIndex: widget.abaInicial,
-      child: Scaffold(
-        backgroundColor: fundoTela,
-        appBar: AppBar(
-          elevation: 0,
-          centerTitle: true,
-          backgroundColor: azulPrincipal,
-          title: const Text(
-            'Medicamentos',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
+  return GestureDetector(
+      onTap: () {
+        FocusScope.of(context).unfocus();
+      },
+      child: DefaultTabController(
+        length: 4,
+        initialIndex: widget.abaInicial,
+        child: Scaffold(
+          backgroundColor: fundoTela,
+          appBar: AppBar(
+            elevation: 0,
+            centerTitle: true,
+            backgroundColor: azulPrincipal,
+            title: const Text(
+              'Medicamentos',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            bottom: const TabBar(
+              indicatorColor: Colors.white,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white70,
+              labelStyle: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+              tabs: [
+                Tab(text: 'Cadastrar'),
+                Tab(text: 'Rotina'),
+                Tab(text: 'Hoje'),
+                Tab(text: 'Semana'),
+              ],
             ),
           ),
-          bottom: const TabBar(
-            indicatorColor: Colors.white,
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
-            labelStyle: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
-            ),
-            tabs: [
-              Tab(text: 'Cadastrar'),
-              Tab(text: 'Rotina'),
-              Tab(text: 'Hoje'),
-              Tab(text: 'Semana'),
+          body: TabBarView(
+            children: [
+              abaCadastrar(tema),
+              abaRotina(tema),
+              abaHoje(tema),
+              abaSemana(tema),
             ],
           ),
         ),
-        body: TabBarView(
-          children: [
-            abaCadastrar(tema),
-            abaRotina(tema),
-            abaHoje(tema),
-            abaSemana(tema),
-          ],
-        ),
-      ),
+      )
     );
   }
 }

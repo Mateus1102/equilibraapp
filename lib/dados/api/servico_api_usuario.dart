@@ -69,7 +69,7 @@ class ServicoApiUsuario {
   }
 
   Future<String?> recuperarPin({
-    required String cpf,
+    required String nomeUsuario,
     required String emailRecuperacao,
     required String novoPin,
   }) async {
@@ -79,7 +79,7 @@ class ServicoApiUsuario {
         'Content-Type': 'application/json',
       },
       body: jsonEncode({
-        'cpf': cpf,
+        'nomeUsuario': nomeUsuario,
         'emailRecuperacao': emailRecuperacao,
         'novoPin': novoPin,
       }),

@@ -73,6 +73,34 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
     );
   }
 
+  Future<void> confirmarSaida() async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (_) {
+        return AlertDialog(
+          title: const Text('Sair da conta'),
+          content: const Text(
+            'Deseja realmente sair da sua conta?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Sair'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmar == true) {
+      await sairDaConta();
+    }
+  }
+
   Future<void> mostrarPopup({
     required String titulo,
     required String mensagem,
@@ -108,7 +136,7 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 14,
             offset: const Offset(0, 6),
           ),
@@ -132,7 +160,7 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
             height: 44,
             width: 44,
             decoration: BoxDecoration(
-              color: azulPrincipal.withOpacity(0.10),
+              color: azulPrincipal.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(
@@ -458,7 +486,7 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
                             borderRadius: BorderRadius.circular(28),
                             boxShadow: [
                               BoxShadow(
-                                color: azulPrincipal.withOpacity(0.20),
+                                color: azulPrincipal.withValues(alpha: 0.20),
                                 blurRadius: 18,
                                 offset: const Offset(0, 8),
                               ),
@@ -470,7 +498,7 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
                                 height: 92,
                                 width: 92,
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.18),
+                                  color: Colors.white.withValues(alpha: 0.18),
                                   shape: BoxShape.circle,
                                 ),
                                 child: const Icon(
@@ -603,7 +631,7 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
                         SizedBox(
                           height: 56,
                           child: ElevatedButton.icon(
-                            onPressed: sairDaConta,
+                            onPressed: confirmarSaida,
                             icon: const Icon(Icons.logout),
                             label: const Text(
                               'Sair da conta',

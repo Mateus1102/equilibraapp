@@ -26,6 +26,7 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
 
   final TextEditingController controladorHora = TextEditingController();
   final TextEditingController controladorMinuto = TextEditingController();
+  final ScrollController controladorRolagemRegistro = ScrollController();
 
   final FocusNode focoHora = FocusNode();
   final FocusNode focoMinuto = FocusNode();
@@ -83,6 +84,7 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
     controladorBuscaObservacao.dispose();
     controladorHora.dispose();
     controladorMinuto.dispose();
+    controladorRolagemRegistro.dispose();
 
     focoHora.dispose();
     focoMinuto.dispose();
@@ -157,7 +159,7 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
     );
 
     if (novaData.isAfter(agora)) {
-      mostrarMensagem('Não é permitido informar data futura.');
+      await mostrarMensagem('Não é permitido informar data futura.');
       return;
     }
 
@@ -166,27 +168,40 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
     });
   }
 
-  void mostrarMensagem(String texto) {
+  Future<void> mostrarMensagem(String texto) async {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(texto)),
+    await showDialog<void>(
+      context: context,
+      builder: (_) {
+        return AlertDialog(
+          title: const Text('Aviso'),
+          content: Text(texto),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
     );
   }
 
   Future<void> salvarRegistro() async {
+    FocusScope.of(context).unfocus();
     final texto = controladorGlicemia.text.trim();
     final observacao = controladorObservacao.text.trim();
 
     if (texto.isEmpty) {
-      mostrarMensagem('Informe o valor da glicemia.');
+      await mostrarMensagem('Informe o valor da glicemia.');
       return;
     }
 
     final glicemia = int.tryParse(texto);
 
     if (glicemia == null) {
-      mostrarMensagem('Digite um valor válido.');
+      await mostrarMensagem('Digite um valor válido.');
       return;
     }
 
@@ -194,12 +209,12 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
     final minuto = int.tryParse(controladorMinuto.text) ?? -1;
 
     if (hora < 0 || hora > 23) {
-      mostrarMensagem('Hora inválida.');
+      await mostrarMensagem('Hora inválida.');
       return;
     }
 
     if (minuto < 0 || minuto > 59) {
-      mostrarMensagem('Minuto inválido.');
+      await mostrarMensagem('Minuto inválido.');
       return;
     }
 
@@ -212,7 +227,7 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
     );
 
     if (dataFinal.isAfter(DateTime.now())) {
-      mostrarMensagem('A data e hora não podem ser futuras.');
+      await mostrarMensagem('A data e hora não podem ser futuras.');
       return;
     }
 
@@ -269,11 +284,19 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
           .salvar(pendentes);
     }
 
-    mostrarMensagem(
+    await mostrarMensagem(
       salvoApi
           ? 'Registro salvo com sucesso.'
           : 'Registro salvo localmente.',
     );
+
+    if (controladorRolagemRegistro.hasClients) {
+      await controladorRolagemRegistro.animateTo(
+        0,
+        duration: const Duration(milliseconds: 450),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   Future<void> editarRegistro(int indice) async {
@@ -294,7 +317,7 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
 
     await armazenamento.salvar(registros);
 
-    mostrarMensagem('Registro atualizado.');
+    await mostrarMensagem('Registro atualizado.');
   }
 
   Future<void> confirmarExclusaoRegistro(int indice) async {
@@ -328,7 +351,7 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
 
     await armazenamento.salvar(registros);
 
-    mostrarMensagem('Registro excluído.');
+    await mostrarMensagem('Registro excluído.');
   }
 
   List<RegistroGlicemico> obterRegistrosFiltrados() {
@@ -677,6 +700,9 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
 
   Widget abaRegistrar(ThemeData tema) {
     return SingleChildScrollView(
+      controller: controladorRolagemRegistro,
+      keyboardDismissBehavior:
+        ScrollViewKeyboardDismissBehavior.onDrag,
       padding: const EdgeInsets.all(20),
       child: cardModerno(
         child: Column(
@@ -962,48 +988,53 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final tema = Theme.of(context);
+    @override
+    Widget build(BuildContext context) {
+      final tema = Theme.of(context);
 
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        backgroundColor: fundoTela,
-        appBar: AppBar(
-          elevation: 0,
-          centerTitle: true,
-          backgroundColor: azulPrincipal,
-          title: const Text(
-            'Glicemia',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
+      return GestureDetector(
+        onTap: () {
+          FocusScope.of(context).unfocus();
+        },
+        child: DefaultTabController(
+          length: 2,
+          child: Scaffold(
+            backgroundColor: fundoTela,
+            appBar: AppBar(
+              elevation: 0,
+              centerTitle: true,
+              backgroundColor: azulPrincipal,
+              title: const Text(
+                'Glicemia',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              bottom: const TabBar(
+                indicatorColor: Colors.white,
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.white70,
+                labelStyle: TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+                unselectedLabelStyle: TextStyle(
+                  fontWeight: FontWeight.w600,
+                ),
+                tabs: [
+                  Tab(text: 'Registrar'),
+                  Tab(text: 'Histórico'),
+                ],
+              ),
+            ),
+            body: TabBarView(
+              children: [
+                abaRegistrar(tema),
+                abaHistorico(),
+              ],
             ),
           ),
-          bottom: const TabBar(
-            indicatorColor: Colors.white,
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
-            labelStyle: TextStyle(
-              fontWeight: FontWeight.bold,
-            ),
-            unselectedLabelStyle: TextStyle(
-              fontWeight: FontWeight.w600,
-            ),
-            tabs: [
-              Tab(text: 'Registrar'),
-              Tab(text: 'Histórico'),
-            ],
-          ),
         ),
-        body: TabBarView(
-          children: [
-            abaRegistrar(tema),
-            abaHistorico(),
-          ],
-        ),
-      ),
-    );
+      );
+    }
   }
-}
