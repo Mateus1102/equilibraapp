@@ -184,4 +184,28 @@ Future<String?> alterarNomeUsuario({
     return 'Não foi possível alterar o nome de usuário.';
   }
 }
+Future<String?> excluirConta({
+  required String cpf,
+  required String pin,
+}) async {
+  final resposta = await http.delete(
+    Uri.parse(
+      '${ApiConfig.baseUrl}/usuarios/excluir-conta/$cpf',
+    ),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: jsonEncode({
+      'pin': pin,
+    }),
+  );
+
+  final dados = jsonDecode(resposta.body);
+
+  if (resposta.statusCode == 200) {
+    return null;
+  }
+
+  return dados['mensagem'] ?? 'Erro ao excluir conta.';
+}
 }
