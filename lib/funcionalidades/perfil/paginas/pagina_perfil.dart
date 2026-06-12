@@ -394,14 +394,14 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
     }
 
     final erro =
-        await servicoApiUsuario.atualizarPerfil(
-          cpf: usuario!.cpf,
-          nome: controladorNome.text.trim(),
-          nomeUsuario: controladorNomeUsuario.text.trim(),
-          emailRecuperacao: controladorEmail.text.trim(),
-          tipoDiabetes: tipoSelecionado,
-          dataNascimento: dataNascimentoSelecionada,
-        );
+        await servicoApiUsuario
+            .atualizarPerfil(
+      cpf: usuario!.cpf,
+      nome: controladorNome.text.trim(),
+      emailRecuperacao: controladorEmail.text.trim(),
+      tipoDiabetes: tipoSelecionado,
+      dataNascimento: dataNascimentoSelecionada,
+    );
 
     if (erro != null) {
       await mostrarPopup(
