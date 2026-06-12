@@ -442,6 +442,134 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
     );
   }
 
+  Future<void> alterarPin() async {
+    if (usuario == null) return;
+
+    FocusScope.of(context).unfocus();
+
+    final controladorPinAtual = TextEditingController();
+    final controladorNovoPin = TextEditingController();
+    final controladorConfirmarPin = TextEditingController();
+
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (_) {
+        return AlertDialog(
+          title: const Text('Alterar PIN'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: controladorPinAtual,
+                  keyboardType: TextInputType.number,
+                  obscureText: true,
+                  maxLength: 6,
+                  decoration: const InputDecoration(
+                    labelText: 'PIN atual',
+                  ),
+                ),
+                TextField(
+                  controller: controladorNovoPin,
+                  keyboardType: TextInputType.number,
+                  obscureText: true,
+                  maxLength: 6,
+                  decoration: const InputDecoration(
+                    labelText: 'Novo PIN',
+                  ),
+                ),
+                TextField(
+                  controller: controladorConfirmarPin,
+                  keyboardType: TextInputType.number,
+                  obscureText: true,
+                  maxLength: 6,
+                  decoration: const InputDecoration(
+                    labelText: 'Confirmar novo PIN',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Salvar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    final pinAtual = controladorPinAtual.text.trim();
+    final novoPin = controladorNovoPin.text.trim();
+    final confirmarPin = controladorConfirmarPin.text.trim();
+
+    controladorPinAtual.dispose();
+    controladorNovoPin.dispose();
+    controladorConfirmarPin.dispose();
+
+    if (confirmou != true) return;
+
+    if (pinAtual.length != 6 || novoPin.length != 6) {
+      await mostrarPopup(
+        titulo: 'PIN inválido',
+        mensagem: 'O PIN atual e o novo PIN devem conter 6 dígitos.',
+      );
+      return;
+    }
+
+    if (novoPin != confirmarPin) {
+      await mostrarPopup(
+        titulo: 'Confirmação inválida',
+        mensagem: 'A confirmação do PIN não corresponde ao novo PIN.',
+      );
+      return;
+    }
+
+    final erro = await servicoApiUsuario.alterarPin(
+      cpf: usuario!.cpf,
+      pinAtual: pinAtual,
+      novoPin: novoPin,
+    );
+
+    if (erro != null) {
+      await mostrarPopup(
+        titulo: 'Erro ao alterar PIN',
+        mensagem: erro,
+      );
+      return;
+    }
+
+    final usuarioAtualizado = usuario!.copiarCom(
+      pin: novoPin,
+    );
+
+    final usuarios = await armazenamentoUsuario.carregarUsuarios();
+
+    final indice = usuarios.indexWhere(
+      (u) => u.cpf == usuario!.cpf,
+    );
+
+    if (indice != -1) {
+      usuarios[indice] = usuarioAtualizado;
+    }
+
+    await armazenamentoUsuario.salvarUsuarios(usuarios);
+
+    setState(() {
+      usuario = usuarioAtualizado;
+    });
+
+    await mostrarPopup(
+      titulo: 'PIN alterado',
+      mensagem: 'Seu PIN foi alterado com sucesso.',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tema = Theme.of(context);
@@ -573,6 +701,29 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
                                   icon: const Icon(Icons.edit_outlined),
                                   label: const Text(
                                     'Editar perfil',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: azulPrincipal,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 48,
+                                child: ElevatedButton.icon(
+                                  onPressed: alterarPin,
+                                  icon: const Icon(Icons.lock_reset_outlined),
+                                  label: const Text(
+                                    'Alterar PIN',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                     ),
