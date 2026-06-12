@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../dados/modelos/usuario.dart';
 import '../../../dados/servicos/armazenamento_usuario.dart';
@@ -17,7 +18,7 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
       ArmazenamentoUsuario();
 
   final ServicoApiUsuario servicoApiUsuario =
-    ServicoApiUsuario();
+      ServicoApiUsuario();
 
   final Color azulPrincipal = const Color(0xFF1565C0);
   final Color fundoTela = const Color(0xFFF6F9FF);
@@ -65,6 +66,14 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
 
     if (!mounted) return;
 
+    FocusScope.of(context).unfocus();
+
+    await Future.delayed(
+      const Duration(milliseconds: 150),
+    );
+
+    if (!mounted) return;
+
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
         builder: (_) => const PaginaLogin(),
@@ -76,7 +85,7 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
   Future<void> confirmarSaida() async {
     final confirmar = await showDialog<bool>(
       context: context,
-      builder: (_) {
+      builder: (contextDialog) {
         return AlertDialog(
           title: const Text('Sair da conta'),
           content: const Text(
@@ -84,11 +93,15 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () {
+                Navigator.of(contextDialog).pop(false);
+              },
               child: const Text('Cancelar'),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () {
+                Navigator.of(contextDialog).pop(true);
+              },
               child: const Text('Sair'),
             ),
           ],
@@ -109,13 +122,15 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
 
     await showDialog<void>(
       context: context,
-      builder: (_) {
+      builder: (contextDialog) {
         return AlertDialog(
           title: Text(titulo),
           content: Text(mensagem),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                Navigator.of(contextDialog).pop();
+              },
               child: const Text('OK'),
             ),
           ],
@@ -195,68 +210,46 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
       ),
     );
   }
+
   Future<void> editarPerfil() async {
     if (usuario == null) return;
+
     FocusScope.of(context).unfocus();
 
-    final controladorNome =
-        TextEditingController(
+    final controladorNome = TextEditingController(
       text: usuario!.nome,
     );
 
-    final controladorNomeUsuario =
-        TextEditingController(
-      text: usuario!.nomeUsuario,
-    );
-
-    final controladorEmail =
-        TextEditingController(
+    final controladorEmail = TextEditingController(
       text: usuario!.emailRecuperacao,
     );
 
-    String tipoSelecionado =
-        usuario!.tipoDiabetes;
-    
+    String tipoSelecionado = usuario!.tipoDiabetes;
+
     DateTime dataNascimentoSelecionada =
         usuario!.dataNascimento;
 
-    final resultado =
-        await showDialog<bool>(
+    final resultado = await showDialog<bool>(
       context: context,
-      builder: (context) {
+      builder: (contextDialog) {
         return AlertDialog(
-          title: const Text(
-            'Editar perfil',
-          ),
+          title: const Text('Editar perfil'),
           content: StatefulBuilder(
             builder: (
-              context,
+              contextDialogInterno,
               atualizarDialog,
             ) {
               return SingleChildScrollView(
                 child: Column(
-                  mainAxisSize:
-                      MainAxisSize.min,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     TextField(
-                      controller:
-                          controladorNome,
-                      decoration:
-                          const InputDecoration(
-                        labelText:
-                            'Nome',
+                      controller: controladorNome,
+                      decoration: const InputDecoration(
+                        labelText: 'Nome',
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: controladorNomeUsuario,
-                      decoration: const InputDecoration(
-                        labelText: 'Nome de usuário',
-                      ),
-                    ),
-                    const SizedBox(
-                      height: 12,
-                    ),
                     TextField(
                       controller: controladorEmail,
                       keyboardType: TextInputType.emailAddress,
@@ -264,25 +257,19 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
                         labelText: 'E-mail',
                       ),
                     ),
-
-                    const SizedBox(
-                      height: 12,
-                    ),
-
+                    const SizedBox(height: 12),
                     InkWell(
                       onTap: () async {
-                        FocusScope.of(context).unfocus();
+                        FocusScope.of(contextDialogInterno).unfocus();
 
                         final data = await showDatePicker(
-                          context: context,
+                          context: contextDialogInterno,
                           initialDate: dataNascimentoSelecionada,
                           firstDate: DateTime(1900),
                           lastDate: DateTime.now(),
                         );
 
-                        if (data == null) {
-                          return;
-                        }
+                        if (data == null) return;
 
                         atualizarDialog(() {
                           dataNascimentoSelecionada = data;
@@ -299,62 +286,36 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
                         ),
                       ),
                     ),
-
-                    const SizedBox(
-                      height: 12,
-                    ),
+                    const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      initialValue:
-                          tipoSelecionado,
-                      decoration:
-                          const InputDecoration(
-                        labelText:
-                            'Tipo de diabetes',
+                      initialValue: tipoSelecionado,
+                      decoration: const InputDecoration(
+                        labelText: 'Tipo de diabetes',
                       ),
                       items: const [
                         DropdownMenuItem(
-                          value:
-                              'Tipo 1',
-                          child: Text(
-                            'Tipo 1',
-                          ),
+                          value: 'Tipo 1',
+                          child: Text('Tipo 1'),
                         ),
                         DropdownMenuItem(
-                          value:
-                              'Tipo 2',
-                          child: Text(
-                            'Tipo 2',
-                          ),
+                          value: 'Tipo 2',
+                          child: Text('Tipo 2'),
                         ),
                         DropdownMenuItem(
-                          value:
-                              'Gestacional',
-                          child: Text(
-                            'Gestacional',
-                          ),
+                          value: 'Gestacional',
+                          child: Text('Gestacional'),
                         ),
                         DropdownMenuItem(
-                          value:
-                              'Não informado',
-                          child: Text(
-                            'Não informado',
-                          ),
+                          value: 'Não informado',
+                          child: Text('Não informado'),
                         ),
                       ],
-                      onChanged: (
-                        valor,
-                      ) {
-                        if (valor ==
-                            null) {
-                          return;
-                        }
+                      onChanged: (valor) {
+                        if (valor == null) return;
 
-                        atualizarDialog(
-                          () {
-                            tipoSelecionado =
-                                valor;
-                          },
-                        );
+                        atualizarDialog(() {
+                          tipoSelecionado = valor;
+                        });
                       },
                     ),
                   ],
@@ -365,40 +326,55 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
           actions: [
             TextButton(
               onPressed: () {
-                FocusScope.of(context).unfocus();
-
-                Navigator.pop(
-                  context,
-                  false,
-                );
+                FocusScope.of(contextDialog).unfocus();
+                Navigator.of(contextDialog).pop(false);
               },
               child: const Text('Cancelar'),
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(
-                  context,
-                  true,
-                );
+                FocusScope.of(contextDialog).unfocus();
+                Navigator.of(contextDialog).pop(true);
               },
-              child:
-                  const Text('Salvar'),
+              child: const Text('Salvar'),
             ),
           ],
         );
       },
     );
 
-    if (resultado != true) {
+    await Future.delayed(
+      const Duration(milliseconds: 150),
+    );
+
+    final nome = controladorNome.text.trim();
+    final email = controladorEmail.text.trim();
+
+    controladorNome.dispose();
+    controladorEmail.dispose();
+
+    if (resultado != true) return;
+
+    if (nome.isEmpty) {
+      await mostrarPopup(
+        titulo: 'Nome obrigatório',
+        mensagem: 'Informe seu nome.',
+      );
       return;
     }
 
-    final erro =
-        await servicoApiUsuario
-            .atualizarPerfil(
+    if (email.isEmpty || !email.contains('@')) {
+      await mostrarPopup(
+        titulo: 'E-mail inválido',
+        mensagem: 'Informe um e-mail válido.',
+      );
+      return;
+    }
+
+    final erro = await servicoApiUsuario.atualizarPerfil(
       cpf: usuario!.cpf,
-      nome: controladorNome.text.trim(),
-      emailRecuperacao: controladorEmail.text.trim(),
+      nome: nome,
+      emailRecuperacao: email,
       tipoDiabetes: tipoSelecionado,
       dataNascimento: dataNascimentoSelecionada,
     );
@@ -411,42 +387,34 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
       return;
     }
 
-    final usuarioAtualizado =
-        usuario!.copiarCom(
-      nome: controladorNome.text.trim(),
-      nomeUsuario: controladorNomeUsuario.text.trim(),
-      emailRecuperacao: controladorEmail.text.trim(),
+    final usuarioAtualizado = usuario!.copiarCom(
+      nome: nome,
+      emailRecuperacao: email,
       tipoDiabetes: tipoSelecionado,
       dataNascimento: dataNascimentoSelecionada,
     );
 
     final usuarios =
-        await armazenamentoUsuario
-            .carregarUsuarios();
+        await armazenamentoUsuario.carregarUsuarios();
 
-    final indice =
-        usuarios.indexWhere(
+    final indice = usuarios.indexWhere(
       (u) => u.cpf == usuario!.cpf,
     );
 
     if (indice != -1) {
-      usuarios[indice] =
-          usuarioAtualizado;
+      usuarios[indice] = usuarioAtualizado;
     }
 
-    await armazenamentoUsuario
-        .salvarUsuarios(
-      usuarios,
-    );
+    await armazenamentoUsuario.salvarUsuarios(usuarios);
 
-    await armazenamentoUsuario
-        .salvarSessao(
+    await armazenamentoUsuario.salvarSessao(
       usuarioAtualizado.cpf,
     );
 
+    if (!mounted) return;
+
     setState(() {
-      usuario =
-          usuarioAtualizado;
+      usuario = usuarioAtualizado;
     });
 
     await mostrarPopup(
@@ -460,13 +428,14 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
 
     FocusScope.of(context).unfocus();
 
-    final controladorPinAtual = TextEditingController();
-    final controladorNovoPin = TextEditingController();
-    final controladorConfirmarPin = TextEditingController();
+    String pinAtual = '';
+    String novoPin = '';
+    String confirmarPin = '';
 
     final confirmou = await showDialog<bool>(
       context: context,
-      builder: (_) {
+      barrierDismissible: false,
+      builder: (contextDialog) {
         return AlertDialog(
           title: const Text('Alterar PIN'),
           content: SingleChildScrollView(
@@ -474,42 +443,71 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
-                  controller: controladorPinAtual,
                   keyboardType: TextInputType.number,
                   obscureText: true,
                   maxLength: 6,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(6),
+                  ],
                   decoration: const InputDecoration(
                     labelText: 'PIN atual',
+                    counterText: '',
                   ),
+                  onChanged: (valor) {
+                    pinAtual = valor.trim();
+                  },
                 ),
+                const SizedBox(height: 12),
                 TextField(
-                  controller: controladorNovoPin,
                   keyboardType: TextInputType.number,
                   obscureText: true,
                   maxLength: 6,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(6),
+                  ],
                   decoration: const InputDecoration(
                     labelText: 'Novo PIN',
+                    counterText: '',
                   ),
+                  onChanged: (valor) {
+                    novoPin = valor.trim();
+                  },
                 ),
+                const SizedBox(height: 12),
                 TextField(
-                  controller: controladorConfirmarPin,
                   keyboardType: TextInputType.number,
                   obscureText: true,
                   maxLength: 6,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(6),
+                  ],
                   decoration: const InputDecoration(
                     labelText: 'Confirmar novo PIN',
+                    counterText: '',
                   ),
+                  onChanged: (valor) {
+                    confirmarPin = valor.trim();
+                  },
                 ),
               ],
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () {
+                FocusScope.of(contextDialog).unfocus();
+                Navigator.of(contextDialog).pop(false);
+              },
               child: const Text('Cancelar'),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () {
+                FocusScope.of(contextDialog).unfocus();
+                Navigator.of(contextDialog).pop(true);
+              },
               child: const Text('Salvar'),
             ),
           ],
@@ -517,15 +515,11 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
       },
     );
 
-    final pinAtual = controladorPinAtual.text.trim();
-    final novoPin = controladorNovoPin.text.trim();
-    final confirmarPin = controladorConfirmarPin.text.trim();
-
-    controladorPinAtual.dispose();
-    controladorNovoPin.dispose();
-    controladorConfirmarPin.dispose();
-
     if (confirmou != true) return;
+
+    await Future.delayed(
+      const Duration(milliseconds: 150),
+    );
 
     if (pinAtual.length != 6 || novoPin.length != 6) {
       await mostrarPopup(
@@ -561,7 +555,8 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
       pin: novoPin,
     );
 
-    final usuarios = await armazenamentoUsuario.carregarUsuarios();
+    final usuarios =
+        await armazenamentoUsuario.carregarUsuarios();
 
     final indice = usuarios.indexWhere(
       (u) => u.cpf == usuario!.cpf,
@@ -573,6 +568,8 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
 
     await armazenamentoUsuario.salvarUsuarios(usuarios);
 
+    if (!mounted) return;
+
     setState(() {
       usuario = usuarioAtualizado;
     });
@@ -580,6 +577,104 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
     await mostrarPopup(
       titulo: 'PIN alterado',
       mensagem: 'Seu PIN foi alterado com sucesso.',
+    );
+  }
+
+  Future<void> alterarNomeUsuario() async {
+    if (usuario == null) return;
+
+    FocusScope.of(context).unfocus();
+
+    String novoNomeUsuario = usuario!.nomeUsuario;
+
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (contextDialog) {
+        return AlertDialog(
+          title: const Text('Alterar nome de usuário'),
+          content: TextField(
+            controller: TextEditingController(
+              text: usuario!.nomeUsuario,
+            ),
+            textCapitalization: TextCapitalization.none,
+            decoration: const InputDecoration(
+              labelText: 'Novo nome de usuário',
+            ),
+            onChanged: (valor) {
+              novoNomeUsuario = valor.trim().toLowerCase();
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(contextDialog).pop(false);
+              },
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(contextDialog).pop(true);
+              },
+              child: const Text('Salvar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmou != true) return;
+
+    await Future.delayed(
+      const Duration(milliseconds: 150),
+    );
+
+    if (novoNomeUsuario.isEmpty) {
+      await mostrarPopup(
+        titulo: 'Usuário inválido',
+        mensagem: 'Informe um nome de usuário válido.',
+      );
+      return;
+    }
+
+    final erro = await servicoApiUsuario.alterarNomeUsuario(
+      cpf: usuario!.cpf,
+      novoNomeUsuario: novoNomeUsuario,
+    );
+
+    if (erro != null) {
+      await mostrarPopup(
+        titulo: 'Erro ao alterar usuário',
+        mensagem: erro,
+      );
+      return;
+    }
+
+    final usuarioAtualizado = usuario!.copiarCom(
+      nomeUsuario: novoNomeUsuario,
+    );
+
+    final usuarios =
+        await armazenamentoUsuario.carregarUsuarios();
+
+    final indice = usuarios.indexWhere(
+      (u) => u.cpf == usuario!.cpf,
+    );
+
+    if (indice != -1) {
+      usuarios[indice] = usuarioAtualizado;
+    }
+
+    await armazenamentoUsuario.salvarUsuarios(usuarios);
+
+    if (!mounted) return;
+
+    setState(() {
+      usuario = usuarioAtualizado;
+    });
+
+    await mostrarPopup(
+      titulo: 'Usuário alterado',
+      mensagem: 'Seu nome de usuário foi alterado com sucesso.',
     );
   }
 
@@ -592,239 +687,252 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
         FocusScope.of(context).unfocus();
       },
       child: Scaffold(
-          backgroundColor: fundoTela,
-          appBar: AppBar(
-            elevation: 0,
-            backgroundColor: azulPrincipal,
-            centerTitle: true,
-            title: const Text(
-              'Perfil',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
+        backgroundColor: fundoTela,
+        appBar: AppBar(
+          elevation: 0,
+          backgroundColor: azulPrincipal,
+          centerTitle: true,
+          title: const Text(
+            'Perfil',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          body: carregando
-              ? const Center(
-                  child: CircularProgressIndicator(),
-                )
-              : usuario == null
-                  ? const Center(
-                      child: Text(
-                        'Usuário não encontrado.',
-                      ),
-                    )
-                  : ListView(
-                      padding: const EdgeInsets.all(20),
-                      children: [
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(24),
-                          margin: const EdgeInsets.only(bottom: 20),
-                          decoration: BoxDecoration(
-                            color: azulPrincipal,
-                            borderRadius: BorderRadius.circular(28),
-                            boxShadow: [
-                              BoxShadow(
-                                color: azulPrincipal.withValues(alpha: 0.20),
-                                blurRadius: 18,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            children: [
-                              Container(
-                                height: 92,
-                                width: 92,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.18),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.person,
-                                  size: 52,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const SizedBox(height: 18),
-                              Text(
-                                usuario!.nome,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '@${usuario!.nomeUsuario}',
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                usuario!.emailRecuperacao,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  height: 1.35,
-                                ),
-                              ),
-                            ],
-                          ),
+        ),
+        body: carregando
+            ? const Center(
+                child: CircularProgressIndicator(),
+              )
+            : usuario == null
+                ? const Center(
+                    child: Text(
+                      'Usuário não encontrado.',
+                    ),
+                  )
+                : ListView(
+                    padding: const EdgeInsets.all(20),
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(24),
+                        margin: const EdgeInsets.only(bottom: 20),
+                        decoration: BoxDecoration(
+                          color: azulPrincipal,
+                          borderRadius: BorderRadius.circular(28),
+                          boxShadow: [
+                            BoxShadow(
+                              color: azulPrincipal.withValues(alpha: 0.20),
+                              blurRadius: 18,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
                         ),
-                        cardModerno(
-                          child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Dados do usuário',
-                                style: tema.textTheme.titleMedium
-                                    ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: azulPrincipal,
-                                ),
+                        child: Column(
+                          children: [
+                            Container(
+                              height: 92,
+                              width: 92,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.18),
+                                shape: BoxShape.circle,
                               ),
-                              const SizedBox(height: 18),
-                              itemInformacao(
-                                icone: Icons.badge_outlined,
-                                titulo: 'CPF',
-                                descricao:
-                                    formatarCpf(usuario!.cpf),
+                              child: const Icon(
+                                Icons.person,
+                                size: 52,
+                                color: Colors.white,
                               ),
-                              itemInformacao(
-                                icone:
-                                    Icons.calendar_month_outlined,
-                                titulo: 'Data de nascimento',
-                                descricao: formatarData(
-                                  usuario!.dataNascimento,
-                                ),
-                              ),
-                              itemInformacao(
-                                icone:
-                                    Icons.bloodtype_outlined,
-                                titulo: 'Tipo de diabetes',
-                                descricao:
-                                    usuario!.tipoDiabetes,
-                              ),
-                              const SizedBox(height: 8),
-                              SizedBox(
-                                width: double.infinity,
-                                height: 48,
-                                child: ElevatedButton.icon(
-                                  onPressed: editarPerfil,
-                                  icon: const Icon(Icons.edit_outlined),
-                                  label: const Text(
-                                    'Editar perfil',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: azulPrincipal,
-                                    foregroundColor: Colors.white,
-                                    elevation: 0,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              SizedBox(
-                                width: double.infinity,
-                                height: 48,
-                                child: ElevatedButton.icon(
-                                  onPressed: alterarPin,
-                                  icon: const Icon(Icons.lock_reset_outlined),
-                                  label: const Text(
-                                    'Alterar PIN',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: azulPrincipal,
-                                    foregroundColor: Colors.white,
-                                    elevation: 0,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        cardModerno(
-                          child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Sobre o aplicativo',
-                                style: tema.textTheme.titleMedium
-                                    ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: azulPrincipal,
-                                ),
-                              ),
-                              const SizedBox(height: 18),
-                              itemInformacao(
-                                icone:
-                                    Icons.monitor_heart_outlined,
-                                titulo: 'Controle glicêmico',
-                                descricao:
-                                    'Registre medições, acompanhe gráficos e visualize indicadores importantes da sua glicemia.',
-                              ),
-                              itemInformacao(
-                                icone:
-                                    Icons.medication_outlined,
-                                titulo: 'Medicamentos',
-                                descricao:
-                                    'Organize medicamentos por refeição e receba notificações inteligentes no momento correto.',
-                              ),
-                              itemInformacao(
-                                icone:
-                                    Icons.note_alt_outlined,
-                                titulo: 'Anotações diárias',
-                                descricao:
-                                    'Registre sintomas, alimentação, rotina e observações importantes do dia a dia.',
-                              ),
-                            ],
-                          ),
-                        ),
-                        SizedBox(
-                          height: 56,
-                          child: ElevatedButton.icon(
-                            onPressed: confirmarSaida,
-                            icon: const Icon(Icons.logout),
-                            label: const Text(
-                              'Sair da conta',
-                              style: TextStyle(
+                            ),
+                            const SizedBox(height: 18),
+                            Text(
+                              usuario!.nome,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius.circular(18),
+                            const SizedBox(height: 4),
+                            Text(
+                              '@${usuario!.nomeUsuario}',
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontWeight: FontWeight.w600,
                               ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              usuario!.emailRecuperacao,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                height: 1.35,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      cardModerno(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Dados do usuário',
+                              style: tema.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: azulPrincipal,
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                            itemInformacao(
+                              icone: Icons.badge_outlined,
+                              titulo: 'CPF',
+                              descricao: formatarCpf(usuario!.cpf),
+                            ),
+                            itemInformacao(
+                              icone: Icons.calendar_month_outlined,
+                              titulo: 'Data de nascimento',
+                              descricao: formatarData(
+                                usuario!.dataNascimento,
+                              ),
+                            ),
+                            itemInformacao(
+                              icone: Icons.bloodtype_outlined,
+                              titulo: 'Tipo de diabetes',
+                              descricao: usuario!.tipoDiabetes,
+                            ),
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 48,
+                              child: ElevatedButton.icon(
+                                onPressed: editarPerfil,
+                                icon: const Icon(Icons.edit_outlined),
+                                label: const Text(
+                                  'Editar perfil',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: azulPrincipal,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 48,
+                              child: ElevatedButton.icon(
+                                onPressed: alterarPin,
+                                icon: const Icon(Icons.lock_reset_outlined),
+                                label: const Text(
+                                  'Alterar PIN',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: azulPrincipal,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 48,
+                              child: ElevatedButton.icon(
+                                onPressed: alterarNomeUsuario,
+                                icon: const Icon(
+                                  Icons.account_circle_outlined,
+                                ),
+                                label: const Text(
+                                  'Alterar nome de usuário',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: azulPrincipal,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      cardModerno(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Sobre o aplicativo',
+                              style: tema.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: azulPrincipal,
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                            itemInformacao(
+                              icone: Icons.monitor_heart_outlined,
+                              titulo: 'Controle glicêmico',
+                              descricao:
+                                  'Registre medições, acompanhe gráficos e visualize indicadores importantes da sua glicemia.',
+                            ),
+                            itemInformacao(
+                              icone: Icons.medication_outlined,
+                              titulo: 'Medicamentos',
+                              descricao:
+                                  'Organize medicamentos por refeição e receba notificações inteligentes no momento correto.',
+                            ),
+                            itemInformacao(
+                              icone: Icons.note_alt_outlined,
+                              titulo: 'Anotações diárias',
+                              descricao:
+                                  'Registre sintomas, alimentação, rotina e observações importantes do dia a dia.',
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(
+                        height: 56,
+                        child: ElevatedButton.icon(
+                          onPressed: confirmarSaida,
+                          icon: const Icon(Icons.logout),
+                          label: const Text(
+                            'Sair da conta',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
                             ),
                           ),
                         ),
-                      ],
-                    ),
-        ),
-      );
+                      ),
+                    ],
+                  ),
+      ),
+    );
   }
 }
