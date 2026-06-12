@@ -10,6 +10,7 @@ import '../../../dados/api/servico_api_glicemia.dart';
 import '../../../dados/modelos/item_sincronizacao_pendente.dart';
 import '../../../dados/servicos/armazenamento_sincronizacao.dart';
 import '../../../dados/servicos/servico_sincronizacao.dart';
+import '../../inicio/paginas/pagina_inicial.dart';
 
 class PaginaGlicemia extends StatefulWidget {
   const PaginaGlicemia({super.key});
@@ -285,18 +286,17 @@ class _PaginaGlicemiaState extends State<PaginaGlicemia> {
     }
 
     await mostrarMensagem(
-      salvoApi
-          ? 'Registro salvo com sucesso.'
-          : 'Registro salvo localmente.',
+      'Registro salvo com sucesso.'
     );
 
-    if (controladorRolagemRegistro.hasClients) {
-      await controladorRolagemRegistro.animateTo(
-        0,
-        duration: const Duration(milliseconds: 450),
-        curve: Curves.easeOut,
-      );
-    }
+    if (!mounted) return;
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => const PaginaInicial(),
+      ),
+      (route) => false,
+    );
   }
 
   Future<void> editarRegistro(int indice) async {

@@ -161,9 +161,7 @@ class _PaginaAnotacoesState extends State<PaginaAnotacoes> {
     if (!mounted) return;
 
     await mostrarMensagem(
-      salvoApi
-          ? 'Anotação salva com sucesso.'
-          : 'Anotação salva localmente.',
+      'Anotação salva com sucesso.'
     );
   }
 

@@ -30,6 +30,14 @@ class ServicoNotificacoes {
       },
     );
 
+    final detalhesInicializacao =
+        await _notificacoes.getNotificationAppLaunchDetails();
+
+    if (detalhesInicializacao?.didNotificationLaunchApp ?? false) {
+      payloadInicial =
+          detalhesInicializacao?.notificationResponse?.payload;
+    }
+
     final androidPlugin =
         _notificacoes.resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
@@ -72,4 +80,5 @@ class ServicoNotificacoes {
   }
 
   static void Function(String? payload)? aoTocarNotificacao;
+  static String? payloadInicial;
 }

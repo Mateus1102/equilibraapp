@@ -268,10 +268,6 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
       );
 
       await armazenamentoSincronizacao.salvar(pendentes);
-
-      await mostrarMensagem(
-        'Horário salvo localmente.',
-      );
     }
 
     await reagendarNotificacoesMedicamentos();
@@ -320,7 +316,9 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
 
     await salvarHorariosRefeicoes();
 
-    await mostrarMensagem('Horário atualizado e notificações reagendadas.');
+    await mostrarMensagem(
+      'Horário atualizado com sucesso.',
+    );
   }
 
   void limparHistoricoAntigo() {
@@ -610,9 +608,7 @@ class _PaginaMedicamentosState extends State<PaginaMedicamentos> {
     await reagendarNotificacoesMedicamentos();
 
     await mostrarMensagem(
-      idApi != null
-          ? 'Medicamento salvo com sucesso.'
-          : 'Medicamento salvo localmente.',
+      'Medicamento salvo com sucesso.'
     );
   }
 

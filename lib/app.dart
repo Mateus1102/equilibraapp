@@ -8,9 +8,13 @@ import 'funcionalidades/inicio/paginas/pagina_inicial.dart';
 class AppEquilibra extends StatelessWidget {
   const AppEquilibra({super.key});
 
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
+      
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: AppEquilibra.navigatorKey,
       title: 'Equilibra',
       debugShowCheckedModeBanner: false,
       locale: const Locale('pt', 'BR'),
