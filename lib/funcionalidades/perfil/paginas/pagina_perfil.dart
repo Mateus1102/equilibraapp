@@ -580,6 +580,87 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
     );
   }
 
+  Future<void> excluirConta() async {
+    if (usuario == null) return;
+
+    String pin = '';
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (contextDialog) {
+        return AlertDialog(
+          title: const Text('Excluir conta'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Esta ação é permanente e não poderá ser desfeita.',
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                obscureText: true,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                decoration: const InputDecoration(
+                  labelText: 'Informe seu PIN',
+                  counterText: '',
+                ),
+                onChanged: (valor) {
+                  pin = valor.trim();
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(contextDialog).pop(false);
+              },
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(contextDialog).pop(true);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Excluir'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmar != true) return;
+
+    final erro = await servicoApiUsuario.excluirConta(
+      cpf: usuario!.cpf,
+      pin: pin,
+    );
+
+    if (erro != null) {
+      await mostrarPopup(
+        titulo: 'Erro',
+        mensagem: erro,
+      );
+      return;
+    }
+
+    await armazenamentoUsuario.logout();
+
+    if (!mounted) return;
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => const PaginaLogin(),
+      ),
+      (route) => false,
+    );
+  }
+
   Future<void> alterarNomeUsuario() async {
     if (usuario == null) return;
 
@@ -922,6 +1003,28 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
                           ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 56,
+                        child: ElevatedButton.icon(
+                          onPressed: excluirConta,
+                          icon: const Icon(Icons.delete_forever),
+                          label: const Text(
+                            'Excluir conta',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red.shade700,
                             foregroundColor: Colors.white,
                             elevation: 0,
                             shape: RoundedRectangleBorder(
