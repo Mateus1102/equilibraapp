@@ -204,6 +204,11 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
       text: usuario!.nome,
     );
 
+    final controladorNomeUsuario =
+        TextEditingController(
+      text: usuario!.nomeUsuario,
+    );
+
     final controladorEmail =
         TextEditingController(
       text: usuario!.emailRecuperacao,
@@ -240,6 +245,13 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
                           const InputDecoration(
                         labelText:
                             'Nome',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: controladorNomeUsuario,
+                      decoration: const InputDecoration(
+                        labelText: 'Nome de usuário',
                       ),
                     ),
                     const SizedBox(
@@ -382,14 +394,14 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
     }
 
     final erro =
-        await servicoApiUsuario
-            .atualizarPerfil(
-      cpf: usuario!.cpf,
-      nome: controladorNome.text.trim(),
-      emailRecuperacao: controladorEmail.text.trim(),
-      tipoDiabetes: tipoSelecionado,
-      dataNascimento: dataNascimentoSelecionada,
-    );
+        await servicoApiUsuario.atualizarPerfil(
+          cpf: usuario!.cpf,
+          nome: controladorNome.text.trim(),
+          nomeUsuario: controladorNomeUsuario.text.trim(),
+          emailRecuperacao: controladorEmail.text.trim(),
+          tipoDiabetes: tipoSelecionado,
+          dataNascimento: dataNascimentoSelecionada,
+        );
 
     if (erro != null) {
       await mostrarPopup(
@@ -402,6 +414,7 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
     final usuarioAtualizado =
         usuario!.copiarCom(
       nome: controladorNome.text.trim(),
+      nomeUsuario: controladorNomeUsuario.text.trim(),
       emailRecuperacao: controladorEmail.text.trim(),
       tipoDiabetes: tipoSelecionado,
       dataNascimento: dataNascimentoSelecionada,
@@ -643,6 +656,14 @@ class _PaginaPerfilState extends State<PaginaPerfil> {
                                   color: Colors.white,
                                   fontSize: 22,
                                   fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '@${usuario!.nomeUsuario}',
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                               const SizedBox(height: 6),
