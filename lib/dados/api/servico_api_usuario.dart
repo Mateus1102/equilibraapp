@@ -124,4 +124,35 @@ class ServicoApiUsuario {
 
   return dados['mensagem'] ?? 'Erro ao atualizar perfil.';
 }
+
+  Future<String?> alterarPin({
+  required String cpf,
+  required String pinAtual,
+  required String novoPin,
+}) async {
+  try {
+    final resposta = await http.put(
+      Uri.parse(
+        '${ApiConfig.baseUrl}/usuarios/alterar-pin/$cpf',
+      ),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'pinAtual': pinAtual,
+        'novoPin': novoPin,
+      }),
+    );
+
+    final dados = jsonDecode(resposta.body);
+
+    if (resposta.statusCode == 200) {
+      return null;
+    }
+
+    return dados['mensagem'];
+  } catch (_) {
+    return 'Não foi possível alterar o PIN.';
+  }
+}
 }
