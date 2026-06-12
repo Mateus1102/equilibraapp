@@ -155,4 +155,33 @@ class ServicoApiUsuario {
     return 'Não foi possível alterar o PIN.';
   }
 }
+
+Future<String?> alterarNomeUsuario({
+  required String cpf,
+  required String novoNomeUsuario,
+}) async {
+  try {
+    final resposta = await http.put(
+      Uri.parse(
+        '${ApiConfig.baseUrl}/usuarios/alterar-usuario/$cpf',
+      ),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'novoNomeUsuario': novoNomeUsuario,
+      }),
+    );
+
+    final dados = jsonDecode(resposta.body);
+
+    if (resposta.statusCode == 200) {
+      return null;
+    }
+
+    return dados['mensagem'] ?? 'Erro ao alterar nome de usuário.';
+  } catch (_) {
+    return 'Não foi possível alterar o nome de usuário.';
+  }
+}
 }
